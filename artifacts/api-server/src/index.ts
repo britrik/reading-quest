@@ -1,5 +1,6 @@
 import app from "./app";
 import { logger } from "./lib/logger";
+import { seed } from "./seed";
 
 const rawPort = process.env["PORT"];
 
@@ -14,6 +15,12 @@ const port = Number(rawPort);
 if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
+
+seed()
+  .then((r) => {
+    if (r.seeded) logger.info("Database seeded with initial Reading Quest content");
+  })
+  .catch((err) => logger.error({ err }, "Seed failed"));
 
 app.listen(port, (err) => {
   if (err) {
