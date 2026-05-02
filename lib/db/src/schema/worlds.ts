@@ -1,4 +1,4 @@
-import { pgTable, serial, text, integer, jsonb, boolean, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, integer, jsonb, timestamp } from "drizzle-orm/pg-core";
 
 export const worldsTable = pgTable("worlds", {
   id: serial("id").primaryKey(),
@@ -50,6 +50,3 @@ export const finishedChaptersTable = pgTable("finished_chapters", {
 export type World = typeof worldsTable.$inferSelect;
 export type Story = typeof storiesTable.$inferSelect;
 export type Chapter = typeof chaptersTable.$inferSelect;
-
-// satisfy unused import
-void boolean;
