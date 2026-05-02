@@ -256,12 +256,12 @@ export default function Session() {
             {Array.from({ length: 5 }).map((_, i) => (
               <Footprints 
                 key={i} 
-                className={`w-4 h-4 md:w-5 md:h-5 ${i < Math.min(5, Math.ceil((chapter.sortIndex / chapter.chapterCount) * 5)) ? "text-[#A5FFD6]" : "text-white/30"}`} 
+                className={`w-4 h-4 md:w-5 md:h-5 ${i < Math.min(5, Math.ceil(((chapter.sortIndex + 1) / chapter.chapterCount) * 5)) ? "text-[#A5FFD6]" : "text-white/30"}`} 
               />
             ))}
           </div>
           <span className="text-white/80 font-fredoka text-sm font-medium tracking-wide bg-black/40 px-3 py-1 rounded-full">
-            Path {chapter.sortIndex} of {chapter.chapterCount}
+            Path {chapter.sortIndex + 1} of {chapter.chapterCount}
           </span>
         </div>
       </header>

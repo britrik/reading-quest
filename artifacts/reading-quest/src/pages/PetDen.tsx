@@ -109,6 +109,15 @@ export default function PetDen() {
 
   const equippedHat = shopItems.find(i => i.id === pet.equippedHat);
   const equippedColor = shopItems.find(i => i.id === pet.glowColor);
+  const glowCssColor = (() => {
+    switch (equippedColor?.glowColor) {
+      case "berry": return "#C77DFF";
+      case "sun": return "#FFB347";
+      case "sky": return "#7FB7FF";
+      case "rainbow": return "#FF8FE2";
+      default: return null;
+    }
+  })();
   const equippedDecor = shopItems.filter(i => pet.decor.includes(i.id));
 
   const moodLabel = pet.mood === "ecstatic" ? "ecstatic!" : pet.mood === "happy" ? "happy" : pet.mood === "okay" ? "okay" : "lonely…";
@@ -206,7 +215,7 @@ export default function PetDen() {
             <div
               key={bounceKey}
               className="absolute left-1/2 -translate-x-1/2 bottom-[28%] w-44 h-44 md:w-56 md:h-56 animate-float"
-              style={{ filter: equippedColor ? `drop-shadow(0 0 30px ${equippedColor.glowColor})` : undefined }}
+              style={{ filter: glowCssColor ? `drop-shadow(0 0 30px ${glowCssColor})` : undefined }}
             >
               <img
                 src={getImageUrl("/images/reading-quest/companion.png")}

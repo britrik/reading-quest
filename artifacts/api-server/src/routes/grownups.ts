@@ -8,7 +8,7 @@ import {
   chaptersTable,
   worldsTable,
 } from "@workspace/db";
-import { and, desc, eq, gte, sql, inArray } from "drizzle-orm";
+import { and, desc, eq, gte, sql, inArray, countDistinct } from "drizzle-orm";
 import { GrownupsAuthBody } from "@workspace/api-zod";
 import { getOrCreateActiveProfile } from "../lib/profile";
 
@@ -86,16 +86,17 @@ router.get("/grownups/summary", async (req, res) => {
     }
   }
 
-  const wordHelps = await db
-    .select()
+  const wordHelpRows = await db
+    .select({ uniqueWords: countDistinct(wordHelpEventsTable.wordKey) })
     .from(wordHelpEventsTable)
     .where(and(eq(wordHelpEventsTable.profileId, profile.id), gte(wordHelpEventsTable.createdAt, since)));
+  const wordsHelped = Number(wordHelpRows[0]?.uniqueWords ?? 0);
 
   res.json({
     minutesRead,
     storiesFinished,
     chaptersFinished,
-    wordsHelped: wordHelps.length,
+    wordsHelped,
     sessionsCount,
   });
 });
