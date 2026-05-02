@@ -16,6 +16,12 @@ const router: IRouter = Router();
 
 import { randomBytes } from "node:crypto";
 
+const IS_PROD = process.env.NODE_ENV === "production";
+if (IS_PROD && (!process.env.GROWNUPS_PASSCODE || !process.env.GROWNUPS_TOKEN_SECRET)) {
+  throw new Error(
+    "GROWNUPS_PASSCODE and GROWNUPS_TOKEN_SECRET environment variables are required in production.",
+  );
+}
 const PASSCODE = process.env.GROWNUPS_PASSCODE || "1234";
 const TOKEN_SECRET = process.env.GROWNUPS_TOKEN_SECRET || randomBytes(32).toString("hex");
 const TOKEN = `grownup:${TOKEN_SECRET}`;

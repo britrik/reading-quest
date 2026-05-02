@@ -9,7 +9,9 @@ import {
   useFinishSession, 
   useLogWordHelp,
   getGetMeQueryKey,
-  useGetActiveSession
+  useGetActiveSession,
+  getGetActiveSessionQueryKey,
+  getGetStoryQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { PageLoader, PageError } from "@/components/PageStates";
@@ -68,28 +70,43 @@ export default function Session() {
 
   const activeSessionIdRef = useRef<number | null>(null);
   const lastHeartbeatRef = useRef<number>(Date.now());
-  const initializedSessionRef = useRef(false);
+  const initializedForChapterRef = useRef<number | null>(null);
 
-  // Setup session
+  // Reset when route changes to a new chapter
   useEffect(() => {
-    if (!chapter || activeSessionLoading || initializedSessionRef.current) return;
-    
-    // If there is an active session for this chapter, use it. Otherwise start a new one.
+    if (initializedForChapterRef.current !== chapterId) {
+      activeSessionIdRef.current = null;
+      initializedForChapterRef.current = null;
+      lastHeartbeatRef.current = Date.now();
+    }
+  }, [chapterId]);
+
+  // Setup session for the current chapter
+  useEffect(() => {
+    if (!chapter || activeSessionLoading) return;
+    if (initializedForChapterRef.current === chapterId) return;
+
     if (activeSessionData && activeSessionData.chapterId === chapterId) {
       activeSessionIdRef.current = activeSessionData.id;
       lastHeartbeatRef.current = Date.now();
-      initializedSessionRef.current = true;
-    } else if (activeSessionData === null) {
-      // Start new
-      startSession.mutate({ data: { chapterId } }, {
+      initializedForChapterRef.current = chapterId;
+      return;
+    }
+
+    // Either no active session, or it's for a different chapter — start (or reuse) one for this chapter.
+    // POST /sessions on the server pauses any other active session and reuses an existing paused/active session for this chapter.
+    startSession.mutate(
+      { data: { chapterId } },
+      {
         onSuccess: (session) => {
           activeSessionIdRef.current = session.id;
           lastHeartbeatRef.current = Date.now();
-          initializedSessionRef.current = true;
-        }
-      });
-    }
-  }, [chapter, activeSessionData, activeSessionLoading, chapterId, startSession]);
+          initializedForChapterRef.current = chapterId;
+          queryClient.invalidateQueries({ queryKey: getGetActiveSessionQueryKey() });
+        },
+      },
+    );
+  }, [chapter, activeSessionData, activeSessionLoading, chapterId, startSession, queryClient]);
 
   // Heartbeat interval
   useEffect(() => {
@@ -162,7 +179,11 @@ export default function Session() {
       finishSession.mutate({ sessionId: sid }, {
         onSuccess: (rewards) => {
           queryClient.invalidateQueries({ queryKey: getGetMeQueryKey() });
-          
+          queryClient.invalidateQueries({ queryKey: getGetActiveSessionQueryKey() });
+          queryClient.invalidateQueries({ queryKey: getGetStoryQueryKey(storyId) });
+          activeSessionIdRef.current = null;
+          initializedForChapterRef.current = null;
+
           toast.success("Chapter finished! 🎉", {
             description: `You earned ${rewards.gemsAwarded} gems and ${rewards.starsAwarded} stars!`,
             icon: <Sparkles className="w-5 h-5 text-yellow-400" />
