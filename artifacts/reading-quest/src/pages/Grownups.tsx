@@ -191,8 +191,7 @@ function Dashboard({ token, onLogout }: { token: string, onLogout: () => void })
 
             <div className="flex items-stretch gap-2 h-44 px-2">
               {weeklyMins.map((d) => {
-                const h = Math.max(5, Math.round((d.minutes / maxMins) * 100)); // at least 5% so it's visible if >0, wait, if 0 it should be 0.
-                const finalH = d.minutes === 0 ? 0 : h;
+                const finalH = d.minutes === 0 ? 0 : Math.max(5, Math.round((d.minutes / maxMins) * 100));
                 const dObj = new Date(d.date);
                 const dayName = dObj.toLocaleDateString('en-US', { weekday: 'short' });
                 return (

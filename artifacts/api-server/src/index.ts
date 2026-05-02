@@ -16,17 +16,25 @@ if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
 
-seed()
-  .then((r) => {
+async function start() {
+  try {
+    const r = await seed();
     if (r.seeded) logger.info("Database seeded with initial Reading Quest content");
-  })
-  .catch((err) => logger.error({ err }, "Seed failed"));
-
-app.listen(port, (err) => {
-  if (err) {
-    logger.error({ err }, "Error listening on port");
+  } catch (err) {
+    logger.error({ err }, "Seed failed");
     process.exit(1);
   }
 
-  logger.info({ port }, "Server listening");
-});
+  const server = app.listen(port);
+  server.on("listening", () => logger.info({ port }, "Server listening"));
+  server.on("error", (err: NodeJS.ErrnoException) => {
+    if (err.code === "EADDRINUSE") {
+      logger.error({ port }, "Port already in use; aborting startup");
+    } else {
+      logger.error({ err }, "Server error");
+    }
+    process.exit(1);
+  });
+}
+
+start();

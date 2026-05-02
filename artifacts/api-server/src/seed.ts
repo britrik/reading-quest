@@ -125,6 +125,10 @@ const WORLDS: WorldSeed[] = [
             "Inside the fog you hear whispering — quiet voices carefully telling stories from long ago.",
             "You feel cozy. The fog is glad you came.",
           ]),
+          chap("Lantern in the mist", [
+            "A small lantern floats out of the fog. It bobs gently, lighting the path just for you.",
+            "You follow, slow and steady. The fog hums along.",
+          ]),
         ],
       },
     ],
@@ -172,6 +176,10 @@ const WORLDS: WorldSeed[] = [
             "The owl carefully drops a small star into your hand. It hums.",
             "The temple opens its doors, slowly, as if welcoming an old friend.",
           ]),
+          chap("Bell of welcome", [
+            "Inside, a soft bell rings on its own. The sound is gentle and round.",
+            "The temple feels warmer now, like it remembers you.",
+          ]),
         ],
       },
     ],
@@ -214,6 +222,10 @@ const WORLDS: WorldSeed[] = [
           chap("First note", [
             "A row of crystal stones hums quietly. When you tap one, it glows and sings a single note.",
             "The bat watches and waits patiently.",
+          ]),
+          chap("Two more notes", [
+            "You tap two more stones. They glow brighter and join the song.",
+            "The cave starts to feel like a quiet little choir.",
           ]),
           chap("Whole song", [
             "When you tap them in order, the cave fills with shimmering light. The whole cave is glowing.",
