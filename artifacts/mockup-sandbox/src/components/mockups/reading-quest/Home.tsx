@@ -12,7 +12,15 @@ export function Home() {
       <header className="p-6 flex justify-between items-center relative z-10">
         <div className="flex items-center gap-3 bg-white/60 backdrop-blur-sm px-4 py-2 rounded-full voxel-shadow">
           <Heart className="w-6 h-6 text-[#FF9B54] fill-[#FF9B54] animate-pulse-soft" />
-          <span className="font-fredoka font-semibold text-xl text-[#FF9B54]">Pet Level 3</span>
+          <div className="flex flex-col">
+            <span className="font-fredoka font-semibold text-xl text-[#FF9B54] leading-tight">Pet Level 3</span>
+            <div className="flex items-center gap-2 mt-1">
+              <div className="w-32 h-2 bg-white/80 rounded-full overflow-hidden voxel-shadow-inner">
+                <div className="h-full w-[68%] bg-gradient-to-r from-[#FF9B54] to-[#FFD166] rounded-full" />
+              </div>
+              <span className="font-fredoka text-xs text-[#FF9B54]/80">almost level 4!</span>
+            </div>
+          </div>
         </div>
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2 bg-white/60 backdrop-blur-sm px-4 py-2 rounded-full voxel-shadow">
