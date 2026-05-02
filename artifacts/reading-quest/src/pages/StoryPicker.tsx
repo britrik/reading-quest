@@ -9,7 +9,7 @@ export default function StoryPicker() {
   const worldId = Number(params.worldId);
   
   const { data: worlds, isLoading: worldsLoading, error: worldsError } = useListWorlds();
-  const { data: stories, isLoading: storiesLoading, error: storiesError } = useListStoriesInWorld(worldId, { query: { enabled: !!worldId } });
+  const { data: stories, isLoading: storiesLoading, error: storiesError } = useListStoriesInWorld(worldId, { query: { enabled: !!worldId, queryKey: ["stories-in-world", worldId] as const } });
 
   if (worldsLoading || storiesLoading) return <PageLoader />;
   if (worldsError || storiesError || !worlds || !stories) return <PageError />;

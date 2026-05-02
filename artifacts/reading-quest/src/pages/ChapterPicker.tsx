@@ -7,7 +7,7 @@ export default function ChapterPicker() {
   const params = useParams();
   const storyId = Number(params.storyId);
   
-  const { data: story, isLoading, error } = useGetStory(storyId, { query: { enabled: !!storyId } });
+  const { data: story, isLoading, error } = useGetStory(storyId, { query: { enabled: !!storyId, queryKey: ["story", storyId] as const } });
 
   if (isLoading) return <PageLoader />;
   if (error || !story) return <PageError />;

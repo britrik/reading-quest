@@ -14,8 +14,11 @@ import { getOrCreateActiveProfile } from "../lib/profile";
 
 const router: IRouter = Router();
 
+import { randomBytes } from "node:crypto";
+
 const PASSCODE = process.env.GROWNUPS_PASSCODE || "1234";
-const TOKEN = `grownup:${process.env.GROWNUPS_TOKEN_SECRET || "rq-grownups-token"}`;
+const TOKEN_SECRET = process.env.GROWNUPS_TOKEN_SECRET || randomBytes(32).toString("hex");
+const TOKEN = `grownup:${TOKEN_SECRET}`;
 
 function requireGrownupAuth(req: { headers: Record<string, string | string[] | undefined> }): boolean {
   const provided = req.headers["x-grownup-token"];

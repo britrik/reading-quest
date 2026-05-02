@@ -17,7 +17,7 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { PageLoader, PageError } from "@/components/PageStates";
 import { getImageUrl } from "@/lib/utils";
-import type { ShopItem, PetState } from "@workspace/api-client-react/src/generated/api.schemas";
+import type { ShopItem, PetState } from "@workspace/api-client-react";
 
 type TabKey = "feed" | "dress" | "decorate";
 

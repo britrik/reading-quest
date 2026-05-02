@@ -15,7 +15,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { PageLoader, PageError } from "@/components/PageStates";
 import { getImageUrl } from "@/lib/utils";
 import { toast } from "sonner";
-import type { TappableWord } from "@workspace/api-client-react/src/generated/api.schemas";
+import type { TappableWord } from "@workspace/api-client-react";
 
 function speak(text: string, rate = 0.85): Promise<void> {
   return new Promise((resolve) => {
@@ -57,7 +57,7 @@ export default function Session() {
   const [pickedWordKey, setPickedWordKey] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   
-  const { data: chapter, isLoading: chapterLoading, error: chapterError } = useGetChapter(chapterId, { query: { enabled: !!chapterId } });
+  const { data: chapter, isLoading: chapterLoading, error: chapterError } = useGetChapter(chapterId, { query: { enabled: !!chapterId, queryKey: ["chapter", chapterId] as const } });
   const { data: activeSessionData, isLoading: activeSessionLoading } = useGetActiveSession();
   
   const startSession = useStartSession();
@@ -323,7 +323,7 @@ export default function Session() {
             </p>
 
             <div className="flex items-center gap-3 mb-6 flex-wrap">
-              {pickedWord.syllables.map((syl, i) => (
+              {pickedWord.syllables.map((syl: string, i: number) => (
                 <React.Fragment key={i}>
                   <button
                     type="button"
