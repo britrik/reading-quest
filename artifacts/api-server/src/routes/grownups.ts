@@ -44,7 +44,7 @@ router.post("/grownups/auth", (req, res) => {
   res.json({ token: TOKEN });
 });
 
-function gate(req: any, res: any) {
+function gate(req: import("express").Request, res: import("express").Response): boolean {
   if (!requireGrownupAuth(req)) {
     res.status(401).json({ error: "Unauthorized" });
     return false;
