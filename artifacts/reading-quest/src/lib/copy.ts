@@ -85,9 +85,16 @@ export function useCopy(): {
   t: (k: CopyKey) => string;
 } {
   const id = getActiveProfileId();
+  // Side-effect-free fallback: when no active profile is selected (e.g. the
+  // grown-ups passcode screen, the profile picker before pick, or any page
+  // mounted before a profile is set on the device), do NOT hit
+  // /api/preferences. The server's resolveProfile() would otherwise fall
+  // back to getOrCreateActiveProfile() and silently create a child profile
+  // as a side effect. Default locally to en-GB instead.
   const { data } = useQuery({
     queryKey: ["preferences", id],
     queryFn: () => fetchPreferences(id),
+    enabled: id != null,
     staleTime: 60_000,
   });
   const variant: LanguageVariant = data?.languageVariant ?? "en-GB";
