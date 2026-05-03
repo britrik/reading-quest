@@ -7,7 +7,7 @@ build = ["pnpm", "run", "build"]
 run = ["node", "--enable-source-maps", "artifacts/api-server/dist/index.mjs"]
 
 [deployment.env]
-PORT = "8082"
+PORT = "8080"
 NODE_ENV = "production"
 
 [deployment.postBuild]
@@ -25,9 +25,6 @@ expertMode = true
 path = "scripts/post-merge.sh"
 timeoutMs = 20000
 
-
-
-
 [nix]
 channel = "stable-25_05"
 
@@ -36,13 +33,5 @@ localPort = 8080
 externalPort = 80
 
 [[ports]]
-localPort = 8081
-externalPort = 8081
-
-[[ports]]
 localPort = 8082
-externalPort = 3001
-
-[[ports]]
-localPort = 23752
 externalPort = 3000
