@@ -17,6 +17,19 @@ const DEFAULT_JSON_ACCEPT = "application/json, application/problem+json";
 
 let _baseUrl: string | null = null;
 let _authTokenGetter: AuthTokenGetter | null = null;
+let _profileIdGetter: (() => string | number | null) | null = null;
+
+/**
+ * Register a getter for the active child profile id. When set, every fetch
+ * automatically includes an `x-profile-id` header (unless the caller already
+ * provided one). Used by Reading Quest's multi-profile support.
+ * Pass `null` to clear.
+ */
+export function setProfileIdGetter(
+  getter: (() => string | number | null) | null,
+): void {
+  _profileIdGetter = getter;
+}
 
 /**
  * Set a base URL that is prepended to every relative request URL
@@ -355,6 +368,13 @@ export async function customFetch<T = unknown>(
     const token = await _authTokenGetter();
     if (token) {
       headers.set("authorization", `Bearer ${token}`);
+    }
+  }
+
+  if (_profileIdGetter && !headers.has("x-profile-id")) {
+    const profileId = _profileIdGetter();
+    if (profileId !== null && profileId !== undefined && profileId !== "") {
+      headers.set("x-profile-id", String(profileId));
     }
   }
 

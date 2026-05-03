@@ -15,8 +15,8 @@ import {
   LogWordHelpBody,
 } from "@workspace/api-zod";
 import {
-  getOrCreateActiveProfile,
   reloadProfile,
+  resolveProfile,
   xpForNextLevel,
   xpProgressPercent,
 } from "../lib/profile";
@@ -49,7 +49,7 @@ router.post("/sessions", async (req, res) => {
     res.status(400).json({ error: "Chapter not found" });
     return;
   }
-  const profile = await getOrCreateActiveProfile();
+  const profile = await resolveProfile(req);
 
   // Reuse an active session for the same chapter if it exists
   const existing = await db
@@ -97,8 +97,8 @@ router.post("/sessions", async (req, res) => {
   res.status(201).json(serializeSession(inserted[0]!));
 });
 
-router.get("/sessions/active", async (_req, res) => {
-  const profile = await getOrCreateActiveProfile();
+router.get("/sessions/active", async (req, res) => {
+  const profile = await resolveProfile(req);
   const active = await db
     .select()
     .from(sessionsTable)
@@ -134,7 +134,7 @@ router.post("/sessions/:sessionId/heartbeat", async (req, res) => {
     return;
   }
   const delta = Math.max(0, Math.min(HEARTBEAT_MAX_DELTA, parsed.data.activeMsDelta));
-  const profile = await getOrCreateActiveProfile();
+  const profile = await resolveProfile(req);
   const existing = await db.select().from(sessionsTable).where(eq(sessionsTable.id, sessionId)).limit(1);
   if (existing.length === 0 || existing[0]!.profileId !== profile.id) {
     res.status(404).json({ error: "Session not found" });
@@ -158,7 +158,7 @@ router.post("/sessions/:sessionId/pause", async (req, res) => {
     res.status(404).json({ error: "Session not found" });
     return;
   }
-  const profile = await getOrCreateActiveProfile();
+  const profile = await resolveProfile(req);
   const existing = await db.select().from(sessionsTable).where(eq(sessionsTable.id, sessionId)).limit(1);
   if (existing.length === 0 || existing[0]!.profileId !== profile.id) {
     res.status(404).json({ error: "Session not found" });
@@ -190,7 +190,7 @@ router.post("/sessions/:sessionId/finish", async (req, res) => {
     res.status(404).json({ error: "Session not found" });
     return;
   }
-  const profileForFinish = await getOrCreateActiveProfile();
+  const profileForFinish = await resolveProfile(req);
   const existing = await db.select().from(sessionsTable).where(eq(sessionsTable.id, sessionId)).limit(1);
   if (existing.length === 0 || existing[0]!.profileId !== profileForFinish.id) {
     res.status(404).json({ error: "Session not found" });
@@ -300,7 +300,7 @@ router.post("/sessions/:sessionId/word-help", async (req, res) => {
     res.status(400).json({ error: "Invalid body" });
     return;
   }
-  const profileForWord = await getOrCreateActiveProfile();
+  const profileForWord = await resolveProfile(req);
   const session = await db.select().from(sessionsTable).where(eq(sessionsTable.id, sessionId)).limit(1);
   if (session.length === 0 || session[0]!.profileId !== profileForWord.id) {
     res.status(404).json({ error: "Session not found" });

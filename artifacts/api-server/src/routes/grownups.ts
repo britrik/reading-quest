@@ -10,7 +10,7 @@ import {
 } from "@workspace/db";
 import { and, desc, eq, gte, sql, inArray, countDistinct } from "drizzle-orm";
 import { GrownupsAuthBody } from "@workspace/api-zod";
-import { getOrCreateActiveProfile } from "../lib/profile";
+import { resolveProfile } from "../lib/profile";
 
 const router: IRouter = Router();
 
@@ -54,7 +54,7 @@ function gate(req: import("express").Request, res: import("express").Response): 
 
 router.get("/grownups/summary", async (req, res) => {
   if (!gate(req, res)) return;
-  const profile = await getOrCreateActiveProfile();
+  const profile = await resolveProfile(req);
   const since = new Date();
   since.setDate(since.getDate() - 30);
 
@@ -103,7 +103,7 @@ router.get("/grownups/summary", async (req, res) => {
 
 router.get("/grownups/weekly-minutes", async (req, res) => {
   if (!gate(req, res)) return;
-  const profile = await getOrCreateActiveProfile();
+  const profile = await resolveProfile(req);
   const days: { date: string; minutes: number }[] = [];
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -130,7 +130,7 @@ router.get("/grownups/weekly-minutes", async (req, res) => {
 
 router.get("/grownups/words", async (req, res) => {
   if (!gate(req, res)) return;
-  const profile = await getOrCreateActiveProfile();
+  const profile = await resolveProfile(req);
   const rows = await db
     .select({
       wordKey: wordHelpEventsTable.wordKey,
@@ -155,7 +155,7 @@ router.get("/grownups/words", async (req, res) => {
 
 router.get("/grownups/finished-stories", async (req, res) => {
   if (!gate(req, res)) return;
-  const profile = await getOrCreateActiveProfile();
+  const profile = await resolveProfile(req);
   const finished = await db
     .select()
     .from(finishedChaptersTable)
@@ -197,7 +197,7 @@ router.get("/grownups/finished-stories", async (req, res) => {
 
 router.get("/grownups/recent-activity", async (req, res) => {
   if (!gate(req, res)) return;
-  const profile = await getOrCreateActiveProfile();
+  const profile = await resolveProfile(req);
 
   const finished = await db
     .select()

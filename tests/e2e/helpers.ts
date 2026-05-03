@@ -30,13 +30,49 @@ export async function apiPost(pathname: string, data?: unknown) {
   return body;
 }
 
-export async function resetTestProfile() {
+export async function resetTestProfile(opts: { onboarded?: boolean } = { onboarded: true }) {
   const ctx = await request.newContext();
   const res = await ctx.post(`${API_BASE}/api/test/reset`, { headers: SECRET_HEADER });
   if (!res.ok()) {
     throw new Error(`Failed to reset test profile: ${res.status()} ${await res.text()}`);
   }
+  if (opts.onboarded) {
+    // Mark the canonical Alex profile (lowest id) as onboarded so existing
+    // tests can navigate to Home without first walking the onboarding flow.
+    const list = await ctx.get(`${API_BASE}/api/profiles`);
+    const profiles: Array<{ id: number }> = list.ok() ? await list.json() : [];
+    const id = profiles[0]?.id;
+    if (id !== undefined) {
+      await ctx.patch(`${API_BASE}/api/profiles/${id}`, {
+        data: { onboardedAt: new Date().toISOString() },
+        headers: { "content-type": "application/json" },
+      });
+    }
+  }
   await ctx.dispose();
+}
+
+/**
+ * Pre-populate localStorage so the multi-profile gate doesn't redirect
+ * a freshly-reset browser context to /profiles. Must be called before any
+ * `page.goto` in the test (Playwright `addInitScript` runs before page load).
+ */
+export async function setActiveProfileForPage(page: Page, profileId: number) {
+  await page.addInitScript(
+    ([key, id]) => {
+      try {
+        window.localStorage.setItem(key as string, String(id));
+      } catch {
+        /* ignore */
+      }
+    },
+    ["rq.activeProfileId", profileId] as const,
+  );
+}
+
+export async function getFirstProfileId(): Promise<number> {
+  const list = await apiGet("/api/profiles");
+  return (list as Array<{ id: number }>)[0]!.id;
 }
 
 export async function getMe(): Promise<{ gems: number; stars: number; petLevel: number; petXp: number; name: string }> {

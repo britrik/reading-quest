@@ -1,10 +1,10 @@
 import { Router, type IRouter } from "express";
-import { getOrCreateActiveProfile, xpForNextLevel, xpProgressPercent } from "../lib/profile";
+import { resolveProfile, xpForNextLevel, xpProgressPercent } from "../lib/profile";
 
 const router: IRouter = Router();
 
-router.get("/me", async (_req, res) => {
-  const p = await getOrCreateActiveProfile();
+router.get("/me", async (req, res) => {
+  const p = await resolveProfile(req);
   res.json({
     id: p.id,
     name: p.name,

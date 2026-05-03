@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { Star, Gem, Map, Heart, Play } from "lucide-react";
+import { Star, Gem, Map, Heart, Play, Settings as SettingsIcon, Users } from "lucide-react";
 import { useGetMe, useListWorlds, useGetActiveSession } from "@workspace/api-client-react";
 import { PageLoader, PageError } from "@/components/PageStates";
 import { getImageUrl } from "@/lib/utils";
@@ -39,6 +39,22 @@ export default function Home() {
             <Star className="w-6 h-6 text-yellow-400 fill-yellow-400" />
             <span className="font-fredoka font-semibold text-xl">{me.stars}</span>
           </div>
+          <Link
+            href="/settings"
+            data-testid="open-settings"
+            aria-label="Open Cozy Settings"
+            className="flex items-center justify-center w-12 h-12 bg-white/60 backdrop-blur-sm rounded-full voxel-shadow hover:-translate-y-1 transition-transform"
+          >
+            <SettingsIcon className="w-6 h-6 text-[#2D3142]" />
+          </Link>
+          <Link
+            href="/profiles"
+            data-testid="switch-profile"
+            aria-label="Switch reader"
+            className="flex items-center justify-center w-12 h-12 bg-white/60 backdrop-blur-sm rounded-full voxel-shadow hover:-translate-y-1 transition-transform"
+          >
+            <Users className="w-6 h-6 text-[#2D3142]" />
+          </Link>
         </div>
       </header>
 

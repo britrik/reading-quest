@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { db, worldsTable, storiesTable, chaptersTable, finishedChaptersTable } from "@workspace/db";
 import { asc, eq, inArray } from "drizzle-orm";
-import { getOrCreateActiveProfile } from "../lib/profile";
+import { resolveProfile } from "../lib/profile";
 
 const router: IRouter = Router();
 
@@ -27,7 +27,7 @@ router.get("/worlds/:worldId/stories", async (req, res) => {
     .where(eq(storiesTable.worldId, worldId))
     .orderBy(asc(storiesTable.sortIndex));
 
-  const profile = await getOrCreateActiveProfile();
+  const profile = await resolveProfile(req);
   const storyIds = stories.map((s) => s.id);
   const chapters = storyIds.length
     ? await db.select().from(chaptersTable).where(inArray(chaptersTable.storyId, storyIds))
@@ -74,7 +74,7 @@ router.get("/stories/:storyId", async (req, res) => {
     .from(chaptersTable)
     .where(eq(chaptersTable.storyId, storyId))
     .orderBy(asc(chaptersTable.sortIndex));
-  const profile = await getOrCreateActiveProfile();
+  const profile = await resolveProfile(req);
   const finished = chapters.length
     ? await db
         .select()

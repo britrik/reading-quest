@@ -1,0 +1,90 @@
+import { Router, type IRouter } from "express";
+import { db, preferencesTable } from "@workspace/db";
+import { eq } from "drizzle-orm";
+import { z } from "zod";
+import { resolveProfile } from "../lib/profile";
+
+const router: IRouter = Router();
+
+const FONT_SIZES = ["small", "medium", "large"] as const;
+const SOUNDSCAPES = ["none", "forest", "rain", "ocean"] as const;
+
+const PreferencesBody = z.object({
+  fontSize: z.enum(FONT_SIZES).optional(),
+  highContrast: z.boolean().optional(),
+  reducedMotion: z.boolean().optional(),
+  voiceSpeed: z.number().min(0.5).max(1.5).optional(),
+  soundscape: z.enum(SOUNDSCAPES).optional(),
+  soundEnabled: z.boolean().optional(),
+  sessionLengthSuggestionMin: z.number().int().min(5).max(60).optional(),
+  breakReminders: z.boolean().optional(),
+});
+
+function serialize(row: typeof preferencesTable.$inferSelect) {
+  return {
+    fontSize: row.fontSize,
+    highContrast: row.highContrast,
+    reducedMotion: row.reducedMotion,
+    voiceSpeed: Math.round(row.voiceSpeed) / 10,
+    soundscape: row.soundscape,
+    soundEnabled: row.soundEnabled,
+    sessionLengthSuggestionMin: row.sessionLengthSuggestionMin,
+    breakReminders: row.breakReminders,
+  };
+}
+
+async function getOrCreate(profileId: number) {
+  const rows = await db
+    .select()
+    .from(preferencesTable)
+    .where(eq(preferencesTable.profileId, profileId))
+    .limit(1);
+  if (rows.length > 0) return rows[0]!;
+  const inserted = await db
+    .insert(preferencesTable)
+    .values({ profileId })
+    .onConflictDoNothing()
+    .returning();
+  if (inserted.length > 0) return inserted[0]!;
+  const reread = await db
+    .select()
+    .from(preferencesTable)
+    .where(eq(preferencesTable.profileId, profileId))
+    .limit(1);
+  return reread[0]!;
+}
+
+router.get("/preferences", async (req, res) => {
+  const profile = await resolveProfile(req);
+  const row = await getOrCreate(profile.id);
+  res.json(serialize(row));
+});
+
+router.put("/preferences", async (req, res) => {
+  const parsed = PreferencesBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid body" });
+    return;
+  }
+  const profile = await resolveProfile(req);
+  await getOrCreate(profile.id);
+
+  const patch: Record<string, unknown> = {};
+  if (parsed.data.fontSize !== undefined) patch.fontSize = parsed.data.fontSize;
+  if (parsed.data.highContrast !== undefined) patch.highContrast = parsed.data.highContrast;
+  if (parsed.data.reducedMotion !== undefined) patch.reducedMotion = parsed.data.reducedMotion;
+  if (parsed.data.voiceSpeed !== undefined) patch.voiceSpeed = Math.round(parsed.data.voiceSpeed * 10);
+  if (parsed.data.soundscape !== undefined) patch.soundscape = parsed.data.soundscape;
+  if (parsed.data.soundEnabled !== undefined) patch.soundEnabled = parsed.data.soundEnabled;
+  if (parsed.data.sessionLengthSuggestionMin !== undefined)
+    patch.sessionLengthSuggestionMin = parsed.data.sessionLengthSuggestionMin;
+  if (parsed.data.breakReminders !== undefined) patch.breakReminders = parsed.data.breakReminders;
+
+  if (Object.keys(patch).length > 0) {
+    await db.update(preferencesTable).set(patch).where(eq(preferencesTable.profileId, profile.id));
+  }
+  const updated = await getOrCreate(profile.id);
+  res.json(serialize(updated));
+});
+
+export default router;

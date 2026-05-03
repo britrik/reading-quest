@@ -15,8 +15,8 @@ import {
   PurchaseShopItemBody,
 } from "@workspace/api-zod";
 import {
-  getOrCreateActiveProfile,
   reloadProfile,
+  resolveProfile,
   xpForNextLevel,
   xpProgressPercent,
   moodFromHappiness,
@@ -47,8 +47,8 @@ async function petStatePayload(profileId: number) {
   };
 }
 
-router.get("/pet", async (_req, res) => {
-  const profile = await getOrCreateActiveProfile();
+router.get("/pet", async (req, res) => {
+  const profile = await resolveProfile(req);
   res.json(await petStatePayload(profile.id));
 });
 
@@ -58,7 +58,7 @@ router.post("/pet/feed", async (req, res) => {
     res.status(400).json({ error: "Invalid body" });
     return;
   }
-  const profile = await getOrCreateActiveProfile();
+  const profile = await resolveProfile(req);
   const item = await db.select().from(shopItemsTable).where(eq(shopItemsTable.id, parsed.data.itemId)).limit(1);
   if (item.length === 0 || item[0]!.kind !== "snack") {
     res.status(400).json({ error: "Snack not available" });
@@ -96,7 +96,7 @@ router.post("/pet/equip", async (req, res) => {
     res.status(400).json({ error: "Invalid slot" });
     return;
   }
-  const profile = await getOrCreateActiveProfile();
+  const profile = await resolveProfile(req);
   if (itemId) {
     const owned = await db
       .select()
@@ -127,7 +127,7 @@ router.post("/pet/decor", async (req, res) => {
     return;
   }
   const { itemId, on } = parsed.data;
-  const profile = await getOrCreateActiveProfile();
+  const profile = await resolveProfile(req);
   const owned = await db
     .select()
     .from(ownedItemsTable)
@@ -151,8 +151,8 @@ router.post("/pet/decor", async (req, res) => {
   res.json(await petStatePayload(profile.id));
 });
 
-router.get("/shop", async (_req, res) => {
-  const profile = await getOrCreateActiveProfile();
+router.get("/shop", async (req, res) => {
+  const profile = await resolveProfile(req);
   const items = await db.select().from(shopItemsTable).orderBy(asc(shopItemsTable.sortIndex));
   const owned = await db.select().from(ownedItemsTable).where(eq(ownedItemsTable.profileId, profile.id));
   const ownedSet = new Set(owned.map((o) => o.itemId));
@@ -184,7 +184,7 @@ router.post("/shop/purchase", async (req, res) => {
     res.status(400).json({ error: "Invalid body" });
     return;
   }
-  const profile = await getOrCreateActiveProfile();
+  const profile = await resolveProfile(req);
   const item = await db.select().from(shopItemsTable).where(eq(shopItemsTable.id, parsed.data.itemId)).limit(1);
   if (item.length === 0) {
     res.status(400).json({ error: "Item not found" });

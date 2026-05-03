@@ -8,9 +8,10 @@ import {
   ownedItemsTable,
   decorStateTable,
   transactionsTable,
+  preferencesTable,
 } from "@workspace/db";
-import { eq } from "drizzle-orm";
-import { getOrCreateActiveProfile } from "../lib/profile";
+import { ne, sql } from "drizzle-orm";
+import { getOrCreateActiveProfile, DEFAULT_PROFILE_NAME } from "../lib/profile";
 
 const router: IRouter = Router();
 
@@ -35,27 +36,39 @@ router.post("/test/reset", async (req, res) => {
     return;
   }
 
-  const profile = await getOrCreateActiveProfile();
-  await db.delete(wordHelpEventsTable).where(eq(wordHelpEventsTable.profileId, profile.id));
-  await db.delete(sessionsTable).where(eq(sessionsTable.profileId, profile.id));
-  await db.delete(finishedChaptersTable).where(eq(finishedChaptersTable.profileId, profile.id));
-  await db.delete(transactionsTable).where(eq(transactionsTable.profileId, profile.id));
-  await db.delete(decorStateTable).where(eq(decorStateTable.profileId, profile.id));
-  await db.delete(ownedItemsTable).where(eq(ownedItemsTable.profileId, profile.id));
-  await db
-    .update(childProfilesTable)
-    .set({
-      gems: 0,
-      stars: 0,
-      petLevel: 1,
-      petXp: 0,
-      fullness: 70,
-      happiness: 70,
-      equippedHat: null,
-      glowColor: "mint",
-    })
-    .where(eq(childProfilesTable.id, profile.id));
+  // Fully wipe per-profile data tables.
+  await db.delete(wordHelpEventsTable);
+  await db.delete(sessionsTable);
+  await db.delete(finishedChaptersTable);
+  await db.delete(transactionsTable);
+  await db.delete(decorStateTable);
+  await db.delete(ownedItemsTable);
+  await db.delete(preferencesTable);
 
+  // Drop every profile except the lowest-id one (the canonical "Alex"), so
+  // tests start each run with a single, clean profile and id is stable.
+  const remaining = await db.select({ id: childProfilesTable.id }).from(childProfilesTable);
+  if (remaining.length > 0) {
+    const minId = remaining.reduce((m, r) => (r.id < m ? r.id : m), remaining[0]!.id);
+    await db.delete(childProfilesTable).where(ne(childProfilesTable.id, minId));
+    await db
+      .update(childProfilesTable)
+      .set({
+        name: DEFAULT_PROFILE_NAME,
+        avatar: "fox",
+        gems: 0,
+        stars: 0,
+        petLevel: 1,
+        petXp: 0,
+        fullness: 70,
+        happiness: 70,
+        equippedHat: null,
+        glowColor: "mint",
+        onboardedAt: sql`null`,
+      });
+  }
+
+  const profile = await getOrCreateActiveProfile();
   res.json({ ok: true, profileId: profile.id });
 });
 

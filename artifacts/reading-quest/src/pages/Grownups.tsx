@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "wouter";
-import { BookOpen, Clock, Sparkles, TrendingUp, MessageSquareHeart, ShieldCheck, Calendar, ChevronRight, Info, Lock } from "lucide-react";
+import { BookOpen, Clock, Sparkles, TrendingUp, MessageSquareHeart, ShieldCheck, Calendar, ChevronRight, Info, Lock, Download } from "lucide-react";
+import VocabularyPanel from "@/components/grownups/VocabularyPanel";
+import WeeklySummaryCard from "@/components/grownups/WeeklySummaryCard";
+import ProfileManager from "@/components/grownups/ProfileManager";
 import {
   useGrownupsAuth,
   useGrownupsSummary,
@@ -81,6 +84,52 @@ export default function Grownups() {
   }
 
   return <Dashboard token={token} onLogout={handleLogout} />;
+}
+
+function DataExportCard({ token }: { token: string }) {
+  async function handleExport() {
+    const headers: Record<string, string> = { "x-grownup-token": token };
+    const { getActiveProfileId } = await import("@/lib/profile");
+    const id = getActiveProfileId();
+    if (id !== null) headers["x-profile-id"] = String(id);
+    const res = await fetch("/api/grownups/export", { headers });
+    if (!res.ok) {
+      alert("Could not export data.");
+      return;
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    const cd = res.headers.get("content-disposition") ?? "";
+    const m = /filename="([^"]+)"/.exec(cd);
+    a.download = m?.[1] ?? "reading-quest-export.json";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+  return (
+    <div className="bg-white rounded-lg border border-slate-200 p-6" data-testid="export-card">
+      <div className="flex items-center gap-2 mb-2">
+        <ShieldCheck className="w-4 h-4 text-slate-400" />
+        <h2 className="text-sm font-semibold text-slate-900">Your data</h2>
+      </div>
+      <p className="text-xs text-slate-500 mb-4 leading-relaxed">
+        Reading Quest stores: profile name &amp; avatar, gem/star totals, pet stats, finished chapters,
+        word-help events, reading sessions, and preferences. Nothing else. Tap below to download
+        everything as JSON.
+      </p>
+      <button
+        type="button"
+        onClick={handleExport}
+        data-testid="export-button"
+        className="bg-slate-900 text-white text-sm font-semibold px-4 py-2.5 rounded-md inline-flex items-center gap-2"
+      >
+        <Download className="w-4 h-4" /> Download all my data (JSON)
+      </button>
+    </div>
+  );
 }
 
 function Dashboard({ token, onLogout }: { token: string, onLogout: () => void }) {
@@ -275,6 +324,16 @@ function Dashboard({ token, onLogout }: { token: string, onLogout: () => void })
               </div>
             )}
           </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+          <WeeklySummaryCard token={token} />
+          <VocabularyPanel token={token} />
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+          <ProfileManager />
+          <DataExportCard token={token} />
         </div>
 
         <div className="rounded-lg border border-slate-200 bg-white p-5 flex items-start gap-3">

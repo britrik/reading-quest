@@ -207,6 +207,42 @@
   transform: translateY(-1px);
 }
 
+/* User preference: font size scaling (set via Cozy Settings). */
+html.rq-font-small { font-size: 14px; }
+html.rq-font-medium { font-size: 16px; }
+html.rq-font-large { font-size: 19px; }
+
+/* User preference: high contrast (set via Cozy Settings). */
+html.rq-high-contrast {
+  --rq-bg: #FFFFFF;
+  --rq-text: #000000;
+  --background: 0 0% 100%;
+  --foreground: 0 0% 0%;
+  --muted-foreground: 0 0% 15%;
+}
+html.rq-high-contrast body {
+  background: #FFFFFF !important;
+  color: #000000 !important;
+}
+html.rq-high-contrast a,
+html.rq-high-contrast button {
+  text-decoration-color: #000000;
+}
+
+/* User preference: reduced motion (in addition to OS-level). */
+html.rq-reduced-motion *,
+html.rq-reduced-motion *::before,
+html.rq-reduced-motion *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+}
+html.rq-reduced-motion .animate-float,
+html.rq-reduced-motion .animate-pulse-soft,
+html.rq-reduced-motion .animate-slide-up {
+  animation: none !important;
+}
+
 /* Respect reduced-motion preferences */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
