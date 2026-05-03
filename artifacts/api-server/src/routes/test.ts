@@ -9,6 +9,7 @@ import {
   decorStateTable,
   transactionsTable,
   preferencesTable,
+  unlockedStoriesTable,
 } from "@workspace/db";
 import { ne, sql } from "drizzle-orm";
 import { getOrCreateActiveProfile, DEFAULT_PROFILE_NAME } from "../lib/profile";
@@ -36,7 +37,8 @@ router.post("/test/reset", async (req, res) => {
     return;
   }
 
-  // Fully wipe per-profile data tables.
+  // Fully wipe per-profile data tables. unlocked_stories is included so the
+  // gem-unlock library state is also reset between e2e/test runs.
   await db.delete(wordHelpEventsTable);
   await db.delete(sessionsTable);
   await db.delete(finishedChaptersTable);
@@ -44,6 +46,7 @@ router.post("/test/reset", async (req, res) => {
   await db.delete(decorStateTable);
   await db.delete(ownedItemsTable);
   await db.delete(preferencesTable);
+  await db.delete(unlockedStoriesTable);
 
   // Drop every profile except the lowest-id one (the canonical "Alex"), so
   // tests start each run with a single, clean profile and id is stable.

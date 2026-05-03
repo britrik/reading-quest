@@ -55,6 +55,13 @@ beforeAll(async () => {
   app = express();
   app.use(express.json());
   app.use("/api", router);
+  // Force a fully clean slate: TRUNCATE all tables (incl. unlocked_stories,
+  // child_profiles) then re-seed. Without this, a previously-run suite can
+  // leave gem balances drained or stories already unlocked, making the
+  // unlock-flow tests nondeterministic.
+  const { db: realDb } = await import("@workspace/db");
+  const { sql: rawSql } = await import("drizzle-orm");
+  await realDb.execute(rawSql`TRUNCATE worlds, stories, chapters, finished_chapters, sessions, word_help_events, shop_items, owned_items, decor_state, transactions, child_profiles, preferences, unlocked_stories RESTART IDENTITY CASCADE`);
   await seed();
 });
 

@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db, childProfilesTable, preferencesTable, sessionsTable, wordHelpEventsTable, finishedChaptersTable, transactionsTable, ownedItemsTable, decorStateTable } from "@workspace/db";
+import { db, childProfilesTable, preferencesTable, sessionsTable, wordHelpEventsTable, finishedChaptersTable, transactionsTable, ownedItemsTable, decorStateTable, unlockedStoriesTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { isGrownupAuthorized, requireGrownup } from "../lib/grownup-auth";
@@ -142,6 +142,7 @@ router.delete("/profiles/:id", async (req, res) => {
   await db.delete(transactionsTable).where(eq(transactionsTable.profileId, id));
   await db.delete(decorStateTable).where(eq(decorStateTable.profileId, id));
   await db.delete(ownedItemsTable).where(eq(ownedItemsTable.profileId, id));
+  await db.delete(unlockedStoriesTable).where(eq(unlockedStoriesTable.profileId, id));
   await db.delete(preferencesTable).where(eq(preferencesTable.profileId, id));
   await db.delete(childProfilesTable).where(eq(childProfilesTable.id, id));
   res.json({ ok: true });

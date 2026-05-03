@@ -418,6 +418,12 @@ export async function seed() {
   // the expansion without a manual reset.
   const existing = await db.select().from(worldsTable);
   if (existing.length >= EXPECTED_WORLDS) {
+    // Library is already seeded — but unlock state lives on profiles, not on
+    // the library, so it's safe to leave as-is. We do NOT clear unlocked
+    // stories here because doing so would reset paying kids' progression on
+    // every server boot. Test runs that need a clean slate hit POST
+    // /api/test/reset (which deletes unlocked_stories) or TRUNCATE the table
+    // directly before invoking the test suite.
     return { seeded: false };
   }
 
