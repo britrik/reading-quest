@@ -42,7 +42,13 @@ test.describe("Cozy Settings", () => {
 
   test("preferences GET/PUT round-trips voiceSpeed and soundscape", async ({ request }) => {
     const id = await getFirstProfileId();
-    const headers = { "x-profile-id": String(id), "content-type": "application/json" };
+    // voiceSpeed is a grown-up-only field, so the kid app cannot set it
+    // without the grown-ups token. soundscape is kid-callable.
+    const headers = {
+      "x-profile-id": String(id),
+      "content-type": "application/json",
+      "x-grownup-token": "grownup:e2e-token",
+    };
 
     let res = await request.get("/api/preferences", { headers: { "x-profile-id": String(id) } });
     expect(res.ok()).toBe(true);

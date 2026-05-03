@@ -57,6 +57,8 @@ export const ListStoriesInWorldResponseItem = zod.object({
   summary: zod.string(),
   chapterCount: zod.number(),
   finishedChapterCount: zod.number(),
+  gemUnlockCost: zod.number(),
+  unlocked: zod.boolean(),
 });
 export const ListStoriesInWorldResponse = zod.array(
   ListStoriesInWorldResponseItem,

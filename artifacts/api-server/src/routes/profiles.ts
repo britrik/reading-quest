@@ -70,11 +70,19 @@ router.patch("/profiles/:id", async (req, res) => {
     res.status(400).json({ error: "Invalid body" });
     return;
   }
-  // Mutating identity fields (name/avatar) is grown-ups-only. The kid app may
-  // still set their own companion + onboardedAt during the onboarding flow.
+  // Mutating identity fields (name/avatar) is normally grown-ups-only, but the
+  // kid app may set its own name during the initial onboarding flow (i.e. when
+  // the profile has not yet been onboarded). After that, any rename requires
+  // the grown-ups passcode. companion + onboardedAt are always kid-callable.
+  // Identity (name/avatar) is grown-ups-only EXCEPT when the kid is completing
+  // onboarding in this same PATCH (i.e. setting onboardedAt). That's the only
+  // moment the kid app is allowed to write a name without the passcode; all
+  // later renames require the grown-up token.
   const touchesIdentity =
     parsed.data.name !== undefined || parsed.data.avatar !== undefined;
-  if (touchesIdentity && !isGrownupAuthorized(req)) {
+  const settingOnboardedNow =
+    parsed.data.onboardedAt !== undefined && parsed.data.onboardedAt !== null;
+  if (touchesIdentity && !isGrownupAuthorized(req) && !settingOnboardedNow) {
     res.status(401).json({ error: "Grown-ups passcode required" });
     return;
   }

@@ -18,6 +18,9 @@ import { PageLoader, PageError } from "@/components/PageStates";
 import { getImageUrl } from "@/lib/utils";
 import { toast } from "sonner";
 import type { TappableWord } from "@workspace/api-client-react";
+import { fetchPreferences, type Preferences } from "@/lib/preferences";
+import { getActiveProfileId } from "@/lib/profile";
+import { playChapterFinish } from "@/lib/sound";
 
 function speak(text: string, rate = 0.85): Promise<void> {
   return new Promise((resolve) => {
@@ -39,13 +42,16 @@ function speak(text: string, rate = 0.85): Promise<void> {
   });
 }
 
-async function speakWordHelp(entry: TappableWord): Promise<void> {
+async function speakWordHelp(entry: TappableWord, baseRate: number): Promise<void> {
+  // baseRate comes from grown-ups settings (0.5–1.5×). We slow down slightly
+  // when reading individual syllables vs. the whole word.
+  const sylRate = Math.max(0.4, baseRate - 0.2);
   for (const syl of entry.syllables) {
-    await speak(syl, 0.7);
+    await speak(syl, sylRate);
     await new Promise((r) => setTimeout(r, 180));
   }
   await new Promise((r) => setTimeout(r, 200));
-  await speak(entry.word, 0.9);
+  await speak(entry.word, baseRate);
 }
 
 export default function Session() {
@@ -58,6 +64,15 @@ export default function Session() {
   const [helpMode, setHelpMode] = useState(false);
   const [pickedWordKey, setPickedWordKey] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [prefs, setPrefs] = useState<Preferences | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchPreferences(getActiveProfileId())
+      .then((p) => { if (!cancelled) setPrefs(p); })
+      .catch(() => { /* fall back to defaults */ });
+    return () => { cancelled = true; };
+  }, []);
   
   const { data: chapter, isLoading: chapterLoading, error: chapterError } = useGetChapter(chapterId, { query: { enabled: !!chapterId, queryKey: ["chapter", chapterId] as const } });
   const { data: activeSessionData, isLoading: activeSessionLoading } = useGetActiveSession();
@@ -143,13 +158,13 @@ export default function Session() {
     }
     
     setIsPlaying(true);
-    speakWordHelp(entry).finally(() => setIsPlaying(false));
+    speakWordHelp(entry, prefs?.voiceSpeed ?? 0.9).finally(() => setIsPlaying(false));
   };
 
   const handleHearIt = () => {
     if (!pickedWord) return;
     setIsPlaying(true);
-    speakWordHelp(pickedWord).finally(() => setIsPlaying(false));
+    speakWordHelp(pickedWord, prefs?.voiceSpeed ?? 0.9).finally(() => setIsPlaying(false));
   };
 
   const handleClose = () => {
@@ -183,6 +198,9 @@ export default function Session() {
           queryClient.invalidateQueries({ queryKey: getGetStoryQueryKey(storyId) });
           activeSessionIdRef.current = null;
           initializedForChapterRef.current = null;
+
+          // Tiny celebratory chime, gated by the user's sound preference.
+          playChapterFinish(prefs?.soundEnabled ?? true);
 
           toast.success("Chapter finished! 🎉", {
             description: `You earned ${rewards.gemsAwarded} gems and ${rewards.starsAwarded} stars!`,

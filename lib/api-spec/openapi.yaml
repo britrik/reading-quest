@@ -535,7 +535,9 @@ components:
         summary: { type: string }
         chapterCount: { type: integer }
         finishedChapterCount: { type: integer }
-      required: [id, worldId, slug, title, summary, chapterCount, finishedChapterCount]
+        gemUnlockCost: { type: integer }
+        unlocked: { type: boolean }
+      required: [id, worldId, slug, title, summary, chapterCount, finishedChapterCount, gemUnlockCost, unlocked]
     StoryDetail:
       type: object
       properties:

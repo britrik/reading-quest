@@ -46,6 +46,8 @@ export interface Story {
   summary: string;
   chapterCount: number;
   finishedChapterCount: number;
+  gemUnlockCost: number;
+  unlocked: boolean;
 }
 
 export interface ChapterSummary {

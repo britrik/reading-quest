@@ -149,12 +149,91 @@ export default function GrownupsSettingsCard({ token }: { token: string }) {
                 onBlur={(e) => void save({ weeklyEmailAddress: e.target.value })}
                 className="mt-2 w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
               />
+              <SendWeeklyEmailButton token={token} />
             </>
           )}
         </div>
 
         {saved && <p className="text-[11px] text-emerald-600">Saved.</p>}
       </div>
+    </div>
+  );
+}
+
+function SendWeeklyEmailButton({ token }: { token: string }) {
+  const [status, setStatus] = useState<"idle" | "sending" | "fallback" | "sent" | "error">("idle");
+  const [message, setMessage] = useState<string>("");
+
+  async function handleSend() {
+    setStatus("sending");
+    setMessage("");
+    try {
+      const res = await fetch("/api/grownups/weekly-summary/send", {
+        method: "POST",
+        headers: authHeaders(token),
+      });
+      if (res.ok) {
+        setStatus("sent");
+        setMessage("Sent — check your inbox.");
+        return;
+      }
+      // Server tells us when email isn't configured; offer the printable
+      // (browser print → save as PDF) fallback explicitly.
+      const body = (await res.json().catch(() => ({}))) as { reason?: string; fallback?: string };
+      if (res.status === 501 && body.reason === "email_not_configured") {
+        setStatus("fallback");
+        setMessage("Email not set up here — open the printable summary instead.");
+        return;
+      }
+      setStatus("error");
+      setMessage("Could not send right now.");
+    } catch (e) {
+      setStatus("error");
+      setMessage((e as Error).message);
+    }
+  }
+
+  function openPrintable() {
+    // Opening with the token in a header isn't possible from window.open; the
+    // server requires the token, so we issue a fetch and stream the HTML into
+    // a new tab via a blob URL.
+    fetch("/api/grownups/weekly-summary/printable", { headers: authHeaders(token) })
+      .then((r) => (r.ok ? r.text() : Promise.reject(new Error(`HTTP ${r.status}`))))
+      .then((html) => {
+        const blob = new Blob([html], { type: "text/html" });
+        const url = URL.createObjectURL(blob);
+        window.open(url, "_blank", "noopener,noreferrer");
+        setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      })
+      .catch((e: Error) => setMessage(e.message));
+  }
+
+  return (
+    <div className="mt-3 flex flex-col gap-2">
+      <button
+        type="button"
+        onClick={() => void handleSend()}
+        disabled={status === "sending"}
+        data-testid="send-weekly-email"
+        className="self-start text-xs font-semibold bg-slate-900 text-white px-3 py-1.5 rounded-md disabled:opacity-50"
+      >
+        {status === "sending" ? "Sending…" : "Send weekly summary now"}
+      </button>
+      {status === "fallback" && (
+        <button
+          type="button"
+          onClick={openPrintable}
+          data-testid="open-printable-summary"
+          className="self-start text-xs font-semibold underline text-slate-700"
+        >
+          Open printable summary (Print → Save as PDF)
+        </button>
+      )}
+      {message && (
+        <p className="text-[11px] text-slate-600" data-testid="weekly-email-status" role="status">
+          {message}
+        </p>
+      )}
     </div>
   );
 }

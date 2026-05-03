@@ -421,7 +421,7 @@ export async function seed() {
     return { seeded: false };
   }
 
-  await db.execute(sql`TRUNCATE worlds, stories, chapters, finished_chapters, sessions, word_help_events, shop_items, owned_items, decor_state, transactions, child_profiles, preferences RESTART IDENTITY CASCADE`);
+  await db.execute(sql`TRUNCATE worlds, stories, chapters, finished_chapters, sessions, word_help_events, shop_items, owned_items, decor_state, transactions, child_profiles, preferences, unlocked_stories RESTART IDENTITY CASCADE`);
 
   await db.insert(childProfilesTable).values({ name: "Alex", gems: 24, stars: 12, petLevel: 3, petXp: 100, fullness: 70, happiness: 75 });
 
@@ -439,9 +439,19 @@ export async function seed() {
       .returning();
     let storySort = 0;
     for (const s of w.stories) {
+      // First story per world is free; subsequent stories cost gems to unlock
+      // so kids feel real progression and can spend their earned gems.
+      const gemUnlockCost = storySort === 0 ? 0 : storySort === 1 ? 5 : 10;
       const insertedStory = await db
         .insert(storiesTable)
-        .values({ worldId: insertedWorld[0]!.id, slug: s.slug, title: s.title, summary: s.summary, sortIndex: storySort++ })
+        .values({
+          worldId: insertedWorld[0]!.id,
+          slug: s.slug,
+          title: s.title,
+          summary: s.summary,
+          sortIndex: storySort++,
+          gemUnlockCost,
+        })
         .returning();
       let chapSort = 0;
       for (const c of s.chapters) {

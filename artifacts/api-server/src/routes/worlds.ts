@@ -1,9 +1,27 @@
 import { Router, type IRouter } from "express";
-import { db, worldsTable, storiesTable, chaptersTable, finishedChaptersTable } from "@workspace/db";
-import { asc, eq, inArray } from "drizzle-orm";
+import {
+  db,
+  worldsTable,
+  storiesTable,
+  chaptersTable,
+  finishedChaptersTable,
+  unlockedStoriesTable,
+  childProfilesTable,
+  transactionsTable,
+} from "@workspace/db";
+import { and, asc, eq, inArray } from "drizzle-orm";
 import { resolveProfile } from "../lib/profile";
 
 const router: IRouter = Router();
+
+async function unlockedStoryIdsFor(profileId: number, storyIds: number[]): Promise<Set<number>> {
+  if (storyIds.length === 0) return new Set();
+  const rows = await db
+    .select()
+    .from(unlockedStoriesTable)
+    .where(and(eq(unlockedStoriesTable.profileId, profileId), inArray(unlockedStoriesTable.storyId, storyIds)));
+  return new Set(rows.map((r) => r.storyId));
+}
 
 router.get("/worlds", async (_req, res) => {
   const rows = await db.select().from(worldsTable).orderBy(asc(worldsTable.sortIndex));
@@ -41,9 +59,11 @@ router.get("/worlds/:worldId/stories", async (req, res) => {
     : [];
   const finishedSet = new Set(finished.filter((f) => f.profileId === profile.id).map((f) => f.chapterId));
 
+  const unlocks = await unlockedStoryIdsFor(profile.id, storyIds);
   const result = stories.map((s) => {
     const myChapters = chapters.filter((c) => c.storyId === s.id);
     const finishedCount = myChapters.filter((c) => finishedSet.has(c.id)).length;
+    const unlocked = s.gemUnlockCost === 0 || unlocks.has(s.id);
     return {
       id: s.id,
       worldId: s.worldId,
@@ -52,10 +72,54 @@ router.get("/worlds/:worldId/stories", async (req, res) => {
       summary: s.summary,
       chapterCount: myChapters.length,
       finishedChapterCount: finishedCount,
+      gemUnlockCost: s.gemUnlockCost,
+      unlocked,
     };
   });
 
   res.json(result);
+});
+
+router.post("/stories/:storyId/unlock", async (req, res) => {
+  const storyId = Number(req.params.storyId);
+  if (!Number.isInteger(storyId)) {
+    res.status(400).json({ error: "Invalid storyId" });
+    return;
+  }
+  const profile = await resolveProfile(req);
+  const story = await db.select().from(storiesTable).where(eq(storiesTable.id, storyId)).limit(1);
+  if (story.length === 0) {
+    res.status(404).json({ error: "Story not found" });
+    return;
+  }
+  const s = story[0]!;
+  if (s.gemUnlockCost === 0) {
+    res.json({ ok: true, alreadyUnlocked: true, gemsRemaining: profile.gems });
+    return;
+  }
+  const already = await db
+    .select()
+    .from(unlockedStoriesTable)
+    .where(and(eq(unlockedStoriesTable.profileId, profile.id), eq(unlockedStoriesTable.storyId, storyId)))
+    .limit(1);
+  if (already.length > 0) {
+    res.json({ ok: true, alreadyUnlocked: true, gemsRemaining: profile.gems });
+    return;
+  }
+  if (profile.gems < s.gemUnlockCost) {
+    res.status(400).json({ error: "Not enough gems", gemsRemaining: profile.gems, gemUnlockCost: s.gemUnlockCost });
+    return;
+  }
+  const newGems = profile.gems - s.gemUnlockCost;
+  await db.update(childProfilesTable).set({ gems: newGems }).where(eq(childProfilesTable.id, profile.id));
+  await db.insert(unlockedStoriesTable).values({ profileId: profile.id, storyId });
+  await db.insert(transactionsTable).values({
+    profileId: profile.id,
+    kind: "spend",
+    amountGems: -s.gemUnlockCost,
+    reason: `unlock_story:${s.slug}`,
+  });
+  res.json({ ok: true, alreadyUnlocked: false, gemsRemaining: newGems });
 });
 
 router.get("/stories/:storyId", async (req, res) => {

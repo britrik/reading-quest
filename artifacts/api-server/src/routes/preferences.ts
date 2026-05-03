@@ -3,24 +3,34 @@ import { db, preferencesTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { resolveProfile } from "../lib/profile";
+import { isGrownupAuthorized } from "../lib/grownup-auth";
 
 const router: IRouter = Router();
 
 const FONT_SIZES = ["small", "medium", "large"] as const;
 const SOUNDSCAPES = ["none", "forest", "rain", "ocean"] as const;
 
-const PreferencesBody = z.object({
+// Kid-safe fields the kid app may modify without grown-ups auth.
+const KidPreferencesBody = z.object({
   fontSize: z.enum(FONT_SIZES).optional(),
   highContrast: z.boolean().optional(),
   reducedMotion: z.boolean().optional(),
-  voiceSpeed: z.number().min(0.5).max(1.5).optional(),
   soundscape: z.enum(SOUNDSCAPES).optional(),
   soundEnabled: z.boolean().optional(),
+});
+
+// Grown-up-only fields. Anyone can READ these, but writes require the
+// grown-ups token to defend against a kid changing parental controls.
+const GrownupPreferencesBody = z.object({
+  voiceSpeed: z.number().min(0.5).max(1.5).optional(),
   sessionLengthSuggestionMin: z.number().int().min(5).max(60).optional(),
   breakReminders: z.boolean().optional(),
   weeklyEmailOptIn: z.boolean().optional(),
   weeklyEmailAddress: z.union([z.string().email(), z.literal("")]).optional(),
 });
+
+const PreferencesBody = KidPreferencesBody.merge(GrownupPreferencesBody);
+const GROWNUP_FIELDS = new Set(Object.keys(GrownupPreferencesBody.shape));
 
 function serialize(row: typeof preferencesTable.$inferSelect) {
   return {
@@ -70,6 +80,14 @@ router.put("/preferences", async (req, res) => {
     res.status(400).json({ error: "Invalid body" });
     return;
   }
+  // Grown-up-only fields require the grown-ups token. We fail closed so a kid
+  // cannot disable break reminders or change the weekly-email recipient.
+  const touchesGrownup = Object.keys(parsed.data).some((k) => GROWNUP_FIELDS.has(k));
+  if (touchesGrownup && !isGrownupAuthorized(req)) {
+    res.status(401).json({ error: "Grown-ups passcode required for these settings" });
+    return;
+  }
+
   const profile = await resolveProfile(req);
   await getOrCreate(profile.id);
 

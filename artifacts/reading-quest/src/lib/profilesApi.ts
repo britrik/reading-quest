@@ -76,10 +76,18 @@ export async function deleteProfile(id: number, token?: string): Promise<void> {
   }
 }
 
-export async function markOnboarded(id: number, companion?: string | null): Promise<void> {
+export async function markOnboarded(
+  id: number,
+  companion?: string | null,
+  name?: string,
+): Promise<void> {
+  // Setting `onboardedAt` here also makes the kid-callable name change valid on
+  // the server (PATCH allows name changes during the initial onboarding flow,
+  // i.e. when the profile has not yet been onboarded).
   await updateProfile(id, {
     onboardedAt: new Date().toISOString(),
     ...(companion !== undefined ? { companion } : {}),
+    ...(name && name.trim() ? { name: name.trim() } : {}),
   });
 }
 

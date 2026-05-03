@@ -230,14 +230,21 @@ describe("profiles CRUD + grown-ups gate", () => {
     expect(renamed.status).toBe(200);
     expect(renamed.body.name).toBe("Renamed");
 
-    // Companion + onboardedAt are kid-callable (no token).
+    // Companion + onboardedAt are kid-callable (no token), and the kid app may
+    // also set its name in the same PATCH that completes onboarding.
     const kidPatch = await request<ProfileRow>("PATCH", `/api/profiles/${created.body.id}`, {
+      name: "Quincy",
       companion: "fox",
       onboardedAt: new Date().toISOString(),
     });
     expect(kidPatch.status).toBe(200);
+    expect(kidPatch.body.name).toBe("Quincy");
     expect(kidPatch.body.companion).toBe("fox");
     expect(kidPatch.body.onboarded).toBe(true);
+
+    // After onboarding, name changes require the grown-up token again.
+    const renameAfter = await request("PATCH", `/api/profiles/${created.body.id}`, { name: "Sneaky" });
+    expect(renameAfter.status).toBe(401);
 
     // Delete requires the token.
     const unauthDel = await request("DELETE", `/api/profiles/${created.body.id}`);
@@ -271,7 +278,7 @@ describe("preferences GET/PUT including grown-ups extras", () => {
     await request<PrefsRow>("PUT", "/api/preferences", {
       weeklyEmailOptIn: false,
       weeklyEmailAddress: "",
-    }, headers);
+    }, { ...headers, ...GROWNUP });
     const before = await request<PrefsRow>("GET", "/api/preferences", undefined, headers);
     expect(before.status).toBe(200);
     expect(before.body.weeklyEmailOptIn).toBe(false);
@@ -282,7 +289,7 @@ describe("preferences GET/PUT including grown-ups extras", () => {
       weeklyEmailAddress: "grown@example.com",
       sessionLengthSuggestionMin: 25,
       breakReminders: false,
-    }, headers);
+    }, { ...headers, ...GROWNUP });
     expect(put.status).toBe(200);
     expect(put.body.weeklyEmailOptIn).toBe(true);
     expect(put.body.weeklyEmailAddress).toBe("grown@example.com");
@@ -292,8 +299,146 @@ describe("preferences GET/PUT including grown-ups extras", () => {
     // Empty string clears the address back to null.
     const cleared = await request<PrefsRow>("PUT", "/api/preferences", {
       weeklyEmailAddress: "",
-    }, headers);
+    }, { ...headers, ...GROWNUP });
     expect(cleared.body.weeklyEmailAddress).toBeNull();
+  });
+});
+
+interface UnlockResponse { ok: boolean; alreadyUnlocked: boolean; gemsRemaining: number }
+interface StoryRow { id: number; title: string; chapterCount: number; gemUnlockCost: number; unlocked: boolean }
+interface MeRow { id: number; name: string; gems: number }
+
+describe("preferences grown-up auth split", () => {
+  it("rejects writes to grown-up-only fields without the token", async () => {
+    const list = await request<ProfileRow[]>("GET", "/api/profiles");
+    const id = list.body[0]!.id;
+    const headers = { "x-profile-id": String(id) };
+
+    // Kid fields go through fine without a token.
+    const kidOk = await request("PUT", "/api/preferences", { fontSize: "large" }, headers);
+    expect(kidOk.status).toBe(200);
+
+    // Grown-up fields are 401 without the token.
+    const blocked = await request("PUT", "/api/preferences", { breakReminders: false }, headers);
+    expect(blocked.status).toBe(401);
+
+    const blocked2 = await request("PUT", "/api/preferences", { weeklyEmailOptIn: true }, headers);
+    expect(blocked2.status).toBe(401);
+
+    // Same payload with the grown-ups token succeeds.
+    const ok = await request<PrefsRow>(
+      "PUT",
+      "/api/preferences",
+      { breakReminders: false, weeklyEmailOptIn: true },
+      { ...headers, ...GROWNUP },
+    );
+    expect(ok.status).toBe(200);
+    expect(ok.body.breakReminders).toBe(false);
+    expect(ok.body.weeklyEmailOptIn).toBe(true);
+  });
+});
+
+describe("story unlock with gems", () => {
+  it("seeds the first story per world as free and locks the rest behind gems", async () => {
+    const r = await request<StoryRow[]>("GET", "/api/worlds/1/stories");
+    expect(r.status).toBe(200);
+    expect(r.body.length).toBeGreaterThanOrEqual(3);
+    expect(r.body[0]!.unlocked).toBe(true);
+    expect(r.body[0]!.gemUnlockCost).toBe(0);
+    expect(r.body[1]!.unlocked).toBe(false);
+    expect(r.body[1]!.gemUnlockCost).toBeGreaterThan(0);
+  });
+
+  it("spends gems and marks the story unlocked", async () => {
+    // Make sure the active profile has plenty of gems.
+    const list = await request<ProfileRow[]>("GET", "/api/profiles");
+    const id = list.body[0]!.id;
+    const headers = { "x-profile-id": String(id) };
+    const stories = await request<StoryRow[]>("GET", "/api/worlds/1/stories", undefined, headers);
+    const locked = stories.body.find((s) => !s.unlocked);
+    expect(locked).toBeDefined();
+
+    const unlock = await request<UnlockResponse>("POST", `/api/stories/${locked!.id}/unlock`, undefined, headers);
+    expect(unlock.status).toBe(200);
+    expect(unlock.body.ok).toBe(true);
+    expect(unlock.body.alreadyUnlocked).toBe(false);
+
+    const after = await request<StoryRow[]>("GET", "/api/worlds/1/stories", undefined, headers);
+    const sameStory = after.body.find((s) => s.id === locked!.id);
+    expect(sameStory?.unlocked).toBe(true);
+
+    // A second unlock attempt is a no-op (no extra spend).
+    const again = await request<UnlockResponse>("POST", `/api/stories/${locked!.id}/unlock`, undefined, headers);
+    expect(again.body.alreadyUnlocked).toBe(true);
+  });
+
+  it("refuses to unlock when the profile cannot afford it", async () => {
+    // Drain the profile's gems to 0 first.
+    const list = await request<ProfileRow[]>("GET", "/api/profiles");
+    const id = list.body[0]!.id;
+    const headers = { "x-profile-id": String(id) };
+    // Use the test reset endpoint isn't available here; instead just set gems
+    // directly via a few unlocks until we get a 400. Easier: pick the most
+    // expensive story in another world after spending what we have.
+    const me = await request<MeRow>("GET", "/api/me", undefined, headers);
+    if (me.body.gems > 0) {
+      // Spend on the cheapest available locked story to drain.
+      for (let w = 2; w <= 6 && me.body.gems > 0; w++) {
+        const ws = await request<StoryRow[]>("GET", `/api/worlds/${w}/stories`, undefined, headers);
+        for (const s of ws.body) {
+          if (!s.unlocked) {
+            await request<UnlockResponse>("POST", `/api/stories/${s.id}/unlock`, undefined, headers);
+          }
+        }
+        const meNow = await request<MeRow>("GET", "/api/me", undefined, headers);
+        if (meNow.body.gems === 0) break;
+      }
+    }
+    // Find a still-locked story.
+    let stillLocked: StoryRow | undefined;
+    for (let w = 1; w <= 6 && !stillLocked; w++) {
+      const ws = await request<StoryRow[]>("GET", `/api/worlds/${w}/stories`, undefined, headers);
+      stillLocked = ws.body.find((s) => !s.unlocked);
+    }
+    if (stillLocked) {
+      const r = await request("POST", `/api/stories/${stillLocked.id}/unlock`, undefined, headers);
+      expect(r.status).toBe(400);
+    }
+  });
+});
+
+describe("weekly summary delivery", () => {
+  // The grownups router validates the strict per-process token from
+  // /api/grownups/auth (not the dev "grownup:*" fallback the rest of the
+  // tests use), so we mint one for this suite.
+  let realToken: Record<string, string>;
+  beforeAll(async () => {
+    const auth = await request<AuthResponse>("POST", "/api/grownups/auth", { passcode: "1234" });
+    realToken = { "x-grownup-token": auth.body.token };
+  });
+
+  it("send returns 501 not_configured (and points to the printable fallback)", async () => {
+    const r = await request<{ reason: string; fallback: string }>(
+      "POST", "/api/grownups/weekly-summary/send", undefined, realToken,
+    );
+    expect(r.status).toBe(501);
+    expect(r.body.reason).toBe("email_not_configured");
+    expect(r.body.fallback).toContain("/grownups/weekly-summary/printable");
+  });
+
+  it("printable summary returns HTML for the active reader", async () => {
+    const r = await request<string>("GET", "/api/grownups/weekly-summary/printable", undefined, realToken);
+    expect(r.status).toBe(200);
+    expect(typeof r.body).toBe("string");
+    expect(r.body).toContain("<html");
+    expect(r.body).toContain("Weekly summary");
+  });
+
+  it("printable + send both 401 without grown-ups token", async () => {
+    const a = await request("GET", "/api/grownups/weekly-summary/printable");
+    const b = await request("POST", "/api/grownups/weekly-summary/send");
+    expect(a.status).toBe(401);
+    expect(b.status).toBe(401);
   });
 });
 

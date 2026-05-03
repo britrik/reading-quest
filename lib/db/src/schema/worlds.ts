@@ -21,6 +21,14 @@ export const storiesTable = pgTable("stories", {
   title: text("title").notNull(),
   summary: text("summary").notNull(),
   sortIndex: integer("sort_index").notNull().default(0),
+  gemUnlockCost: integer("gem_unlock_cost").notNull().default(0),
+});
+
+export const unlockedStoriesTable = pgTable("unlocked_stories", {
+  id: serial("id").primaryKey(),
+  profileId: integer("profile_id").notNull(),
+  storyId: integer("story_id").notNull(),
+  unlockedAt: timestamp("unlocked_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 export type TappableWord = {

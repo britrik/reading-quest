@@ -253,4 +253,81 @@ router.get("/grownups/recent-activity", async (req, res) => {
   res.json(events.slice(0, 25));
 });
 
+router.post("/grownups/weekly-summary/send", async (req, res) => {
+  if (!gate(req, res)) return;
+  const profile = await resolveProfile(req);
+  // We do not currently have an email integration wired in. We persist the
+  // opt-in (see preferences) so a future scheduled job can send. For now we
+  // tell the client we are not configured so it can offer the printable
+  // (browser print-to-PDF) fallback. This is intentional, not silent.
+  res.status(501).json({
+    ok: false,
+    reason: "email_not_configured",
+    fallback: "/api/grownups/weekly-summary/printable",
+    message:
+      "Email delivery is not yet configured for this deployment. Use the printable summary as a PDF fallback (browser print → save as PDF).",
+    profileId: profile.id,
+  });
+});
+
+router.get("/grownups/weekly-summary/printable", async (req, res) => {
+  if (!gate(req, res)) return;
+  const profile = await resolveProfile(req);
+  const since = new Date();
+  since.setDate(since.getDate() - 7);
+
+  const sessions = await db
+    .select()
+    .from(sessionsTable)
+    .where(and(eq(sessionsTable.profileId, profile.id), gte(sessionsTable.startedAt, since)));
+  const minutesRead = Math.round(sessions.reduce((acc, s) => acc + s.activeMs, 0) / 60_000);
+
+  const finished = await db
+    .select()
+    .from(finishedChaptersTable)
+    .where(and(eq(finishedChaptersTable.profileId, profile.id), gte(finishedChaptersTable.finishedAt, since)));
+
+  const wordsHelpedRow = await db
+    .select({ uniqueWords: countDistinct(wordHelpEventsTable.wordKey) })
+    .from(wordHelpEventsTable)
+    .where(and(eq(wordHelpEventsTable.profileId, profile.id), gte(wordHelpEventsTable.createdAt, since)));
+  const wordsHelped = Number(wordHelpsRowSafe(wordsHelpedRow));
+
+  res
+    .setHeader("content-type", "text/html; charset=utf-8")
+    .send(`<!doctype html>
+<html lang="en"><head><meta charset="utf-8"/>
+<title>Reading Quest — Weekly summary for ${escapeHtml(profile.name)}</title>
+<style>
+  body { font-family: system-ui, -apple-system, sans-serif; max-width: 640px; margin: 2rem auto; padding: 1rem; color: #2D3142; }
+  h1 { font-size: 1.6rem; }
+  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin: 1rem 0; }
+  .stat { border: 1px solid #e5e7eb; border-radius: 12px; padding: 1rem; }
+  .num { font-size: 2rem; font-weight: 700; color: #FF9B54; }
+  @media print { .noprint { display: none; } }
+</style></head>
+<body>
+  <h1>Weekly summary for ${escapeHtml(profile.name)}</h1>
+  <p>Past 7 days, ending ${new Date().toLocaleDateString()}.</p>
+  <div class="stats">
+    <div class="stat"><div class="num">${minutesRead}</div><div>minutes read</div></div>
+    <div class="stat"><div class="num">${finished.length}</div><div>chapters finished</div></div>
+    <div class="stat"><div class="num">${sessions.length}</div><div>reading sessions</div></div>
+    <div class="stat"><div class="num">${wordsHelped}</div><div>unique words helped</div></div>
+  </div>
+  <p>Tip: use your browser's <strong>Print → Save as PDF</strong> to keep a copy.</p>
+  <button class="noprint" onclick="window.print()">Print / Save as PDF</button>
+</body></html>`);
+});
+
+function wordHelpsRowSafe(rows: Array<{ uniqueWords: number | string | null }>): number {
+  return Number(rows[0]?.uniqueWords ?? 0);
+}
+
+function escapeHtml(s: string): string {
+  return s.replace(/[&<>"']/g, (c) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c] ?? c,
+  );
+}
+
 export default router;
