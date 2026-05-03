@@ -9,6 +9,7 @@ const router: IRouter = Router();
 
 const FONT_SIZES = ["small", "medium", "large"] as const;
 const SOUNDSCAPES = ["none", "forest", "rain", "ocean"] as const;
+const LANGUAGE_VARIANTS = ["en-GB", "en-US"] as const;
 
 // Kid-safe fields the kid app may modify without grown-ups auth. voiceSpeed
 // lives here because it is a kid-comfort setting (read-aloud speed) that the
@@ -24,12 +25,15 @@ const KidPreferencesBody = z.object({
 
 // Grown-up-only fields. Writes require the grown-ups token (parental control
 // fields) and so do reads of the personally-identifying ones (weeklyEmail*).
-// We strip these from kid-side GETs so a kid cannot peek at the email address.
+// We strip the email fields from kid-side GETs so a kid cannot peek at the
+// email address. languageVariant is grown-up-writable but kid-readable so the
+// kid app can render British/American copy without a separate lookup.
 const GrownupPreferencesBody = z.object({
   sessionLengthSuggestionMin: z.number().int().min(5).max(60).optional(),
   breakReminders: z.boolean().optional(),
   weeklyEmailOptIn: z.boolean().optional(),
   weeklyEmailAddress: z.union([z.string().email(), z.literal("")]).optional(),
+  languageVariant: z.enum(LANGUAGE_VARIANTS).optional(),
 });
 
 const PreferencesBody = KidPreferencesBody.merge(GrownupPreferencesBody);
@@ -43,6 +47,7 @@ function serialize(row: typeof preferencesTable.$inferSelect, includeGrownup: bo
     voiceSpeed: Math.round(row.voiceSpeed) / 10,
     soundscape: row.soundscape,
     soundEnabled: row.soundEnabled,
+    languageVariant: row.languageVariant,
   };
   if (!includeGrownup) return base;
   return {
@@ -112,6 +117,7 @@ router.put("/preferences", async (req, res) => {
   if (parsed.data.weeklyEmailAddress !== undefined) {
     patch.weeklyEmailAddress = parsed.data.weeklyEmailAddress === "" ? null : parsed.data.weeklyEmailAddress;
   }
+  if (parsed.data.languageVariant !== undefined) patch.languageVariant = parsed.data.languageVariant;
 
   if (Object.keys(patch).length > 0) {
     await db.update(preferencesTable).set(patch).where(eq(preferencesTable.profileId, profile.id));

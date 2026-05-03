@@ -22,10 +22,12 @@ import { playGemEarn, playHatEquip } from "@/lib/sound";
 import { fetchPreferences } from "@/lib/preferences";
 import { getActiveProfileId } from "@/lib/profile";
 import { useQuery } from "@tanstack/react-query";
+import { useCopy } from "@/lib/copy";
 
 type TabKey = "feed" | "dress" | "decorate";
 
 export default function PetDen() {
+  const copy = useCopy();
   const queryClient = useQueryClient();
   const { data: pet, isLoading: petLoading, error: petError } = useGetPet();
   const { data: shopItems, isLoading: shopLoading, error: shopError } = useListShopItems();
@@ -193,7 +195,7 @@ export default function PetDen() {
               <p className="font-fredoka text-sm uppercase tracking-widest text-[#FF9B54] font-bold">
                 Sparky's Den
               </p>
-              <h1 className="font-fredoka text-3xl font-bold">A cozy hangout 🏡</h1>
+              <h1 className="font-fredoka text-3xl font-bold">{copy.t("petDenHangout")}</h1>
             </div>
             <div className="bg-white/80 backdrop-blur-sm px-4 py-2 rounded-full voxel-shadow flex items-center gap-2">
               <Heart className={`w-5 h-5 text-[#FF9B54] fill-[#FF9B54] ${pulseHeart ? "animate-pulse-soft" : ""}`} />
@@ -343,7 +345,7 @@ export default function PetDen() {
 
                 <div>
                   <h3 className="font-fredoka text-lg font-bold mb-2 flex items-center gap-2">
-                    <Sparkles className="w-5 h-5 text-[#B4A0E5]" /> Glow color
+                    <Sparkles className="w-5 h-5 text-[#B4A0E5]" /> {copy.t("glowColor")}
                   </h3>
                   <div className="grid grid-cols-3 gap-2">
                     {colors.map(c => (

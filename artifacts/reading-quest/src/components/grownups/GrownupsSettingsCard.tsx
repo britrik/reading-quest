@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
-import { Settings, Mail } from "lucide-react";
+import { Settings, Mail, Globe } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { getActiveProfileId } from "@/lib/profile";
+import { LANGUAGE_VARIANTS, type LanguageVariant } from "@/lib/preferences";
 
 interface ServerPrefs {
   voiceSpeed: number;
@@ -8,7 +10,13 @@ interface ServerPrefs {
   breakReminders: boolean;
   weeklyEmailOptIn: boolean;
   weeklyEmailAddress: string | null;
+  languageVariant: LanguageVariant;
 }
+
+const LANGUAGE_LABELS: Record<LanguageVariant, string> = {
+  "en-GB": "British English (cosy, colour, favourite)",
+  "en-US": "American English (cozy, color, favorite)",
+};
 
 function authHeaders(token: string): Record<string, string> {
   const h: Record<string, string> = {
@@ -21,6 +29,7 @@ function authHeaders(token: string): Record<string, string> {
 }
 
 export default function GrownupsSettingsCard({ token }: { token: string }) {
+  const queryClient = useQueryClient();
   const [prefs, setPrefs] = useState<ServerPrefs | null>(null);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -45,6 +54,9 @@ export default function GrownupsSettingsCard({ token }: { token: string }) {
       if (!res.ok) throw new Error(`save ${res.status}`);
       const fresh = (await res.json()) as ServerPrefs;
       setPrefs(fresh);
+      // Invalidate the kid-app preferences cache so useCopy() picks up the
+      // new languageVariant immediately without a page reload.
+      void queryClient.invalidateQueries({ queryKey: ["preferences"] });
       setSaved(true);
       setTimeout(() => setSaved(false), 1500);
     } catch (e) {
@@ -108,6 +120,24 @@ export default function GrownupsSettingsCard({ token }: { token: string }) {
             data-testid="settings-voice-speed"
             className="w-full mt-1"
           />
+        </label>
+
+        <label className="block">
+          <span className="text-xs font-semibold text-slate-700 inline-flex items-center gap-1">
+            <Globe className="w-3.5 h-3.5" /> Language style
+          </span>
+          <select
+            value={prefs.languageVariant}
+            onChange={(e) => void save({ languageVariant: e.target.value as LanguageVariant })}
+            data-testid="settings-language-variant"
+            className="mt-1 w-full px-3 py-2 border border-slate-300 rounded-md text-sm bg-white"
+          >
+            {LANGUAGE_VARIANTS.map((v) => (
+              <option key={v} value={v}>
+                {LANGUAGE_LABELS[v]}
+              </option>
+            ))}
+          </select>
         </label>
 
         <label className="flex items-center justify-between">

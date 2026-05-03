@@ -3,8 +3,10 @@ import { Star, Gem, Map, Heart, Play, Settings as SettingsIcon, Users } from "lu
 import { useGetMe, useListWorlds, useGetActiveSession } from "@workspace/api-client-react";
 import { PageLoader, PageError } from "@/components/PageStates";
 import { getImageUrl } from "@/lib/utils";
+import { useCopy } from "@/lib/copy";
 
 export default function Home() {
+  const copy = useCopy();
   const [, setLocation] = useLocation();
   const { data: me, isLoading: meLoading, error: meError } = useGetMe();
   const { data: worlds, isLoading: worldsLoading, error: worldsError } = useListWorlds();
@@ -42,7 +44,7 @@ export default function Home() {
           <Link
             href="/settings"
             data-testid="open-settings"
-            aria-label="Open Cozy Settings"
+            aria-label={copy.t("settingsOpenAria")}
             className="flex items-center justify-center w-12 h-12 bg-white/60 backdrop-blur-sm rounded-full voxel-shadow hover:-translate-y-1 transition-transform"
           >
             <SettingsIcon className="w-6 h-6 text-[#2D3142]" />

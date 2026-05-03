@@ -1,5 +1,8 @@
 export type FontSize = "small" | "medium" | "large";
 export type Soundscape = "none" | "forest" | "rain" | "ocean";
+export type LanguageVariant = "en-GB" | "en-US";
+
+export const LANGUAGE_VARIANTS: readonly LanguageVariant[] = ["en-GB", "en-US"];
 
 export interface Preferences {
   fontSize: FontSize;
@@ -10,6 +13,7 @@ export interface Preferences {
   soundEnabled: boolean;
   sessionLengthSuggestionMin: number;
   breakReminders: boolean;
+  languageVariant: LanguageVariant;
 }
 
 export const DEFAULT_PREFERENCES: Preferences = {
@@ -21,6 +25,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   soundEnabled: true,
   sessionLengthSuggestionMin: 15,
   breakReminders: true,
+  languageVariant: "en-GB",
 };
 
 /**

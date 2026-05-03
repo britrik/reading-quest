@@ -11,6 +11,7 @@ import {
   type Soundscape,
 } from "@/lib/preferences";
 import { getActiveProfileId } from "@/lib/profile";
+import { useCopy } from "@/lib/copy";
 import { PageLoader } from "@/components/PageStates";
 
 const FONT_LABELS: Record<FontSize, string> = { small: "A", medium: "A", large: "A" };
@@ -22,6 +23,7 @@ const SOUND_LABELS: Record<Soundscape, string> = {
 };
 
 export default function Settings() {
+  const copy = useCopy();
   const [prefs, setPrefs] = useState<Preferences | null>(null);
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<number | null>(null);
@@ -72,7 +74,7 @@ export default function Settings() {
           <ArrowLeft className="w-5 h-5" /> Back
         </Link>
 
-        <h1 className="font-fredoka text-4xl font-bold mb-2">Cozy Settings</h1>
+        <h1 className="font-fredoka text-4xl font-bold mb-2">{copy.t("settingsTitle")}</h1>
         <p className="text-gray-700 mb-6">Make Reading Quest feel just right.</p>
 
         <section className="bg-white rounded-3xl p-6 voxel-shadow mb-6">

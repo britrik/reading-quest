@@ -32,6 +32,7 @@ export const preferencesTable = pgTable(
     breakReminders: boolean("break_reminders").notNull().default(true),
     weeklyEmailOptIn: boolean("weekly_email_opt_in").notNull().default(false),
     weeklyEmailAddress: text("weekly_email_address"),
+    languageVariant: text("language_variant").notNull().default("en-GB"),
   },
   (t) => ({
     profileUnique: uniqueIndex("preferences_profile_unique").on(t.profileId),

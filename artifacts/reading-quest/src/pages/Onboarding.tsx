@@ -5,6 +5,7 @@ import { useGetMe, useListWorlds, getGetMeQueryKey } from "@workspace/api-client
 import { useQueryClient } from "@tanstack/react-query";
 import { getActiveProfileId } from "@/lib/profile";
 import { markOnboarded } from "@/lib/profilesApi";
+import { useCopy } from "@/lib/copy";
 
 const COMPANIONS = [
   { id: "fox", name: "Foxie", emoji: "🦊" },
@@ -13,6 +14,7 @@ const COMPANIONS = [
 ];
 
 export default function Onboarding() {
+  const copy = useCopy();
   const [, setLocation] = useLocation();
   const { data: me } = useGetMe();
   const { data: worlds } = useListWorlds();
@@ -80,7 +82,7 @@ export default function Onboarding() {
               Hi {me?.name ?? "friend"}! Welcome to Reading Quest
             </h1>
             <p className="text-lg text-gray-700 mb-8">
-              No grades, no timer, no rush. Stories, a tiny pet, and lots of cozy.
+              {copy.t("onboardingIntroSub")}
             </p>
             <div className="flex gap-3 justify-center">
               <button
