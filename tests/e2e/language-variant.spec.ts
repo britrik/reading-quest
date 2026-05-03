@@ -1,5 +1,7 @@
 import { test, expect } from "@playwright/test";
 import {
+  apiPost,
+  getFirstChapterIds,
   getFirstProfileId,
   resetTestProfile,
   setActiveProfileForPage,
@@ -46,12 +48,17 @@ test.describe("British/American English toggle", () => {
     expect(reread.languageVariant).toBe("en-US");
   });
 
-  test("kid Home + Session swap copy after a grown-up flips the toggle (and again on reload)", async ({ page, request }) => {
+  test("kid Settings, Pet Den, Home and Session all swap copy after a grown-up flips the toggle", async ({ page, request }) => {
     const id = await getFirstProfileId();
     await setActiveProfileForPage(page, id);
 
-    // Default en-GB → British spelling visible on the Settings header and the
-    // PetDen "cosy hangout" greeting.
+    // Seed an active session so Home shows the "Carry on / Continue" card
+    // and we have a chapter URL to load Session at.
+    const { chapterId } = await getFirstChapterIds();
+    const session = await apiPost("/api/sessions", { chapterId });
+    const storyId: number = session.storyId;
+
+    // Default en-GB across every variant-sensitive surface.
     await page.goto("/settings");
     await waitForRoot(page);
     await expect(page.getByRole("heading", { name: "Cosy Settings" })).toBeVisible();
@@ -59,6 +66,16 @@ test.describe("British/American English toggle", () => {
     await page.goto("/pet");
     await waitForRoot(page);
     await expect(page.getByRole("heading", { name: /A cosy hangout/ })).toBeVisible();
+
+    await page.goto("/");
+    await waitForRoot(page);
+    await expect(
+      page.getByRole("heading", { name: /Carry on your favourite tale/ }),
+    ).toBeVisible();
+
+    await page.goto(`/story/${storyId}/chapter/${chapterId}`);
+    await waitForRoot(page);
+    await expect(page.getByRole("button", { name: /Rest at the Campfire/ })).toBeVisible();
 
     // Grown-up flips to en-US via the API.
     await request.put("/api/preferences", {
@@ -70,9 +87,7 @@ test.describe("British/American English toggle", () => {
       data: { languageVariant: "en-US" },
     });
 
-    // After a reload the kid app picks up the new variant on every page that
-    // routes copy through useCopy(): Settings header and PetDen greeting both
-    // flip to the American spelling.
+    // After the flip every surface picks up the American spelling.
     await page.goto("/settings");
     await waitForRoot(page);
     await expect(page.getByRole("heading", { name: "Cozy Settings" })).toBeVisible();
@@ -80,6 +95,17 @@ test.describe("British/American English toggle", () => {
     await page.goto("/pet");
     await waitForRoot(page);
     await expect(page.getByRole("heading", { name: /A cozy hangout/ })).toBeVisible();
+
+    await page.goto("/");
+    await waitForRoot(page);
+    await expect(
+      page.getByRole("heading", { name: /Continue your favorite adventure/ }),
+    ).toBeVisible();
+
+    await page.goto(`/story/${storyId}/chapter/${chapterId}`);
+    await waitForRoot(page);
+    // The en-US Rest button drops the definite article ("Rest at Campfire").
+    await expect(page.getByRole("button", { name: /^Rest at Campfire$/ })).toBeVisible();
   });
 
   test("grown-up picker change updates kid copy on the next in-app navigation (no reload)", async ({ page }) => {
