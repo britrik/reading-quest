@@ -2,17 +2,60 @@ import { request, type Page, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 
 const API_BASE = process.env.E2E_API_URL || "http://localhost:80";
-const TEST_SECRET = process.env.E2E_TEST_SECRET || "reading-quest-e2e";
+const TEST_SECRET = process.env.E2E_TEST_SECRET;
+
+if (!TEST_SECRET) {
+  throw new Error(
+    "E2E_TEST_SECRET env var is required for the test reset helper. " +
+      "Pull it from the api-server dev workflow log (printed once at startup).",
+  );
+}
+
+const SECRET_HEADER = { "x-e2e-test-secret": TEST_SECRET };
+
+export async function apiGet(pathname: string) {
+  const ctx = await request.newContext();
+  const res = await ctx.get(`${API_BASE}${pathname}`);
+  if (!res.ok()) throw new Error(`GET ${pathname} -> ${res.status()}`);
+  const body = await res.json();
+  await ctx.dispose();
+  return body;
+}
+
+export async function apiPost(pathname: string, data?: unknown) {
+  const ctx = await request.newContext();
+  const res = await ctx.post(`${API_BASE}${pathname}`, {
+    data: data ?? {},
+    headers: SECRET_HEADER,
+  });
+  if (!res.ok()) throw new Error(`POST ${pathname} -> ${res.status()} ${await res.text()}`);
+  const body = await res.json();
+  await ctx.dispose();
+  return body;
+}
 
 export async function resetTestProfile() {
   const ctx = await request.newContext();
-  const res = await ctx.post(`${API_BASE}/api/test/reset`, {
-    headers: { "x-e2e-test-secret": TEST_SECRET },
-  });
+  const res = await ctx.post(`${API_BASE}/api/test/reset`, { headers: SECRET_HEADER });
   if (!res.ok()) {
     throw new Error(`Failed to reset test profile: ${res.status()} ${await res.text()}`);
   }
   await ctx.dispose();
+}
+
+export async function getMe(): Promise<{ gems: number; stars: number; petLevel: number; petXp: number; name: string }> {
+  return apiGet("/api/me");
+}
+
+export async function getFirstChapterIds() {
+  const worlds = await apiGet("/api/worlds");
+  const stories = await apiGet(`/api/worlds/${worlds[0].id}/stories`);
+  const story = await apiGet(`/api/stories/${stories[0].id}`);
+  return {
+    worldId: worlds[0].id as number,
+    storyId: stories[0].id as number,
+    chapterId: story.chapters[0].id as number,
+  };
 }
 
 export async function expectNoAxeViolations(page: Page, label: string) {

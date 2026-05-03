@@ -14,17 +14,18 @@ import { getOrCreateActiveProfile } from "../lib/profile";
 
 const router: IRouter = Router();
 
-// Destructive endpoint — only mounted (and only responds) when both:
+// Destructive endpoint — only mounted (and only responds) when ALL of:
 //   - NODE_ENV is not "production"
 //   - ENABLE_E2E_TEST_ROUTES is explicitly set to "true"
-// Callers must additionally present the shared secret in `x-e2e-test-secret`
-// (defaults to "reading-quest-e2e" for local dev).
-const TEST_SECRET = process.env["E2E_TEST_SECRET"] || "reading-quest-e2e";
+//   - E2E_TEST_SECRET env var is set (no default, never enabled silently)
+// Callers must present the same secret in `x-e2e-test-secret` to invoke it.
+const TEST_SECRET = process.env["E2E_TEST_SECRET"];
 
 router.post("/test/reset", async (req, res) => {
   if (
     process.env["NODE_ENV"] === "production" ||
-    process.env["ENABLE_E2E_TEST_ROUTES"] !== "true"
+    process.env["ENABLE_E2E_TEST_ROUTES"] !== "true" ||
+    !TEST_SECRET
   ) {
     res.status(404).json({ error: "not_found" });
     return;
