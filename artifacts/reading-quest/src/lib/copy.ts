@@ -10,6 +10,11 @@ const dict = {
     onboardingIntroSub:
       "No grades, no timer, no rush. Stories, a tiny pet, and lots of cosy.",
     glowColor: "Glow colour",
+    homeContinueHeading: "Carry on your favourite tale",
+    sessionRestLong: "Rest at the Campfire",
+    sessionRestShort: "Rest",
+    sessionSoundItOut: "Let's sound it out",
+    sessionNoScoreChange: "No score change. Carry on whenever you're ready.",
     languagePickerLabel: "Language style",
     languageEnGBLabel: "British English",
     languageEnUSLabel: "American English",
@@ -21,6 +26,11 @@ const dict = {
     onboardingIntroSub:
       "No grades, no timer, no rush. Stories, a tiny pet, and lots of cozy.",
     glowColor: "Glow color",
+    homeContinueHeading: "Continue your favorite adventure",
+    sessionRestLong: "Rest at Campfire",
+    sessionRestShort: "Rest",
+    sessionSoundItOut: "Let's sound it out",
+    sessionNoScoreChange: "No score change. Keep going whenever you're ready.",
     languagePickerLabel: "Language style",
     languageEnGBLabel: "British English",
     languageEnUSLabel: "American English",

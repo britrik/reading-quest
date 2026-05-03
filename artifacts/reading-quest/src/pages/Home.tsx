@@ -68,7 +68,7 @@ export default function Home() {
               className="w-full bg-[#A5FFD6] rounded-3xl p-6 flex items-center justify-between gap-6 voxel-shadow hover:-translate-y-1 transition-transform text-left group"
             >
               <div className="flex-1">
-                <h3 className="font-fredoka text-2xl font-bold text-teal-900 mb-2">Continue your adventure</h3>
+                <h3 className="font-fredoka text-2xl font-bold text-teal-900 mb-2">{copy.t("homeContinueHeading")}</h3>
                 <p className="text-teal-800 text-lg">You left off in the middle of a story. Wanna jump back in?</p>
               </div>
               <div className="w-16 h-16 bg-white/50 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">

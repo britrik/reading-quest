@@ -412,3 +412,112 @@ export const GrownupsRecentActivityResponseItem = zod.object({
 export const GrownupsRecentActivityResponse = zod.array(
   GrownupsRecentActivityResponseItem,
 );
+
+/**
+ * Kid-readable. Personally-identifying grown-up fields (weeklyEmail*) are only included when the grown-ups token is presented.
+ * @summary Read the active profile's preferences
+ */
+export const GetPreferencesHeader = zod.object({
+  "x-profile-id": zod.number().optional(),
+  "x-grownup-token": zod.string().optional(),
+});
+
+export const getPreferencesResponseVoiceSpeedMin = 0.5;
+export const getPreferencesResponseVoiceSpeedMax = 1.5;
+
+export const GetPreferencesResponse = zod
+  .object({
+    fontSize: zod.enum(["small", "medium", "large"]),
+    highContrast: zod.boolean(),
+    reducedMotion: zod.boolean(),
+    voiceSpeed: zod
+      .number()
+      .min(getPreferencesResponseVoiceSpeedMin)
+      .max(getPreferencesResponseVoiceSpeedMax),
+    soundscape: zod.enum(["none", "forest", "rain", "ocean"]),
+    soundEnabled: zod.boolean(),
+    languageVariant: zod
+      .enum(["en-GB", "en-US"])
+      .describe(
+        "British vs American English copy. Default en-GB. Grown-up-writable, kid-readable.",
+      ),
+    sessionLengthSuggestionMin: zod.number().optional(),
+    breakReminders: zod.boolean().optional(),
+    weeklyEmailOptIn: zod.boolean().optional(),
+    weeklyEmailAddress: zod.string().nullish(),
+  })
+  .describe(
+    "Per-profile reader preferences. weeklyEmail\* fields are only present in the response when the grown-ups token is presented.",
+  );
+
+/**
+ * Grown-up-only fields (sessionLengthSuggestionMin, breakReminders, weeklyEmail*, languageVariant) require the grown-ups token; kid-callable fields do not.
+ * @summary Patch the active profile's preferences
+ */
+export const UpdatePreferencesHeader = zod.object({
+  "x-profile-id": zod.number().optional(),
+  "x-grownup-token": zod.string().optional(),
+});
+
+export const updatePreferencesBodyVoiceSpeedMin = 0.5;
+export const updatePreferencesBodyVoiceSpeedMax = 1.5;
+
+export const updatePreferencesBodySessionLengthSuggestionMinMin = 5;
+export const updatePreferencesBodySessionLengthSuggestionMinMax = 60;
+
+export const UpdatePreferencesBody = zod
+  .object({
+    fontSize: zod.enum(["small", "medium", "large"]).optional(),
+    highContrast: zod.boolean().optional(),
+    reducedMotion: zod.boolean().optional(),
+    voiceSpeed: zod
+      .number()
+      .min(updatePreferencesBodyVoiceSpeedMin)
+      .max(updatePreferencesBodyVoiceSpeedMax)
+      .optional(),
+    soundscape: zod.enum(["none", "forest", "rain", "ocean"]).optional(),
+    soundEnabled: zod.boolean().optional(),
+    languageVariant: zod.enum(["en-GB", "en-US"]).optional(),
+    sessionLengthSuggestionMin: zod
+      .number()
+      .min(updatePreferencesBodySessionLengthSuggestionMinMin)
+      .max(updatePreferencesBodySessionLengthSuggestionMinMax)
+      .optional(),
+    breakReminders: zod.boolean().optional(),
+    weeklyEmailOptIn: zod.boolean().optional(),
+    weeklyEmailAddress: zod
+      .string()
+      .optional()
+      .describe("Empty string clears the address."),
+  })
+  .describe(
+    "Partial update. Grown-up-only fields require the x-grownup-token header.",
+  );
+
+export const updatePreferencesResponseVoiceSpeedMin = 0.5;
+export const updatePreferencesResponseVoiceSpeedMax = 1.5;
+
+export const UpdatePreferencesResponse = zod
+  .object({
+    fontSize: zod.enum(["small", "medium", "large"]),
+    highContrast: zod.boolean(),
+    reducedMotion: zod.boolean(),
+    voiceSpeed: zod
+      .number()
+      .min(updatePreferencesResponseVoiceSpeedMin)
+      .max(updatePreferencesResponseVoiceSpeedMax),
+    soundscape: zod.enum(["none", "forest", "rain", "ocean"]),
+    soundEnabled: zod.boolean(),
+    languageVariant: zod
+      .enum(["en-GB", "en-US"])
+      .describe(
+        "British vs American English copy. Default en-GB. Grown-up-writable, kid-readable.",
+      ),
+    sessionLengthSuggestionMin: zod.number().optional(),
+    breakReminders: zod.boolean().optional(),
+    weeklyEmailOptIn: zod.boolean().optional(),
+    weeklyEmailAddress: zod.string().nullish(),
+  })
+  .describe(
+    "Per-profile reader preferences. weeklyEmail\* fields are only present in the response when the grown-ups token is presented.",
+  );

@@ -20,6 +20,8 @@ tags:
     description: Pet care, customization, and shop
   - name: grownups
     description: Grown-ups dashboard (passcode-gated)
+  - name: preferences
+    description: Per-profile reader preferences (kid-readable, grown-up-writable for parental fields)
 paths:
   /healthz:
     get:
@@ -487,6 +489,62 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ApiError" }
+  /preferences:
+    get:
+      operationId: getPreferences
+      tags: [preferences]
+      summary: Read the active profile's preferences
+      description: Kid-readable. Personally-identifying grown-up fields (weeklyEmail*) are only included when the grown-ups token is presented.
+      parameters:
+        - in: header
+          name: x-profile-id
+          required: false
+          schema: { type: integer }
+        - in: header
+          name: x-grownup-token
+          required: false
+          schema: { type: string }
+      responses:
+        "200":
+          description: Preferences
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Preferences" }
+    put:
+      operationId: updatePreferences
+      tags: [preferences]
+      summary: Patch the active profile's preferences
+      description: Grown-up-only fields (sessionLengthSuggestionMin, breakReminders, weeklyEmail*, languageVariant) require the grown-ups token; kid-callable fields do not.
+      parameters:
+        - in: header
+          name: x-profile-id
+          required: false
+          schema: { type: integer }
+        - in: header
+          name: x-grownup-token
+          required: false
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PreferencesPatch" }
+      responses:
+        "200":
+          description: Updated preferences
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Preferences" }
+        "400":
+          description: Invalid body
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+        "401":
+          description: Grown-ups passcode required
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
 components:
   schemas:
     HealthStatus:
@@ -743,3 +801,61 @@ components:
         label: { type: string }
         createdAt: { type: string, format: date-time }
       required: [id, kind, label, createdAt]
+    Preferences:
+      type: object
+      description: Per-profile reader preferences. weeklyEmail* fields are only present in the response when the grown-ups token is presented.
+      properties:
+        fontSize:
+          type: string
+          enum: [small, medium, large]
+        highContrast: { type: boolean }
+        reducedMotion: { type: boolean }
+        voiceSpeed:
+          type: number
+          format: float
+          minimum: 0.5
+          maximum: 1.5
+        soundscape:
+          type: string
+          enum: [none, forest, rain, ocean]
+        soundEnabled: { type: boolean }
+        languageVariant:
+          type: string
+          enum: [en-GB, en-US]
+          description: British vs American English copy. Default en-GB. Grown-up-writable, kid-readable.
+        sessionLengthSuggestionMin: { type: integer }
+        breakReminders: { type: boolean }
+        weeklyEmailOptIn: { type: boolean }
+        weeklyEmailAddress:
+          type: ["string", "null"]
+      required: [fontSize, highContrast, reducedMotion, voiceSpeed, soundscape, soundEnabled, languageVariant]
+    PreferencesPatch:
+      type: object
+      description: Partial update. Grown-up-only fields require the x-grownup-token header.
+      properties:
+        fontSize:
+          type: string
+          enum: [small, medium, large]
+        highContrast: { type: boolean }
+        reducedMotion: { type: boolean }
+        voiceSpeed:
+          type: number
+          format: float
+          minimum: 0.5
+          maximum: 1.5
+        soundscape:
+          type: string
+          enum: [none, forest, rain, ocean]
+        soundEnabled: { type: boolean }
+        languageVariant:
+          type: string
+          enum: [en-GB, en-US]
+        sessionLengthSuggestionMin:
+          type: integer
+          minimum: 5
+          maximum: 60
+        breakReminders: { type: boolean }
+        weeklyEmailOptIn: { type: boolean }
+        weeklyEmailAddress:
+          type: string
+          description: Empty string clears the address.

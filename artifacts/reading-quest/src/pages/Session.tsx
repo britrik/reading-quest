@@ -21,6 +21,7 @@ import type { TappableWord } from "@workspace/api-client-react";
 import { fetchPreferences, type Preferences } from "@/lib/preferences";
 import { getActiveProfileId } from "@/lib/profile";
 import { playChapterFinish } from "@/lib/sound";
+import { useCopy } from "@/lib/copy";
 
 function speak(text: string, rate = 0.85): Promise<void> {
   return new Promise((resolve) => {
@@ -55,6 +56,7 @@ async function speakWordHelp(entry: TappableWord, baseRate: number): Promise<voi
 }
 
 export default function Session() {
+  const copy = useCopy();
   const params = useParams();
   const chapterId = Number(params.chapterId);
   const storyId = Number(params.storyId);
@@ -265,8 +267,8 @@ export default function Session() {
           className="bg-white/90 backdrop-blur-md px-6 py-3 rounded-full voxel-shadow flex items-center gap-3 hover:bg-white transition-colors text-lg font-bold"
         >
           <Coffee className="w-6 h-6 text-[#FF9B54]" />
-          <span className="hidden sm:inline">Rest at Campfire</span>
-          <span className="sm:hidden">Rest</span>
+          <span className="hidden sm:inline">{copy.t("sessionRestLong")}</span>
+          <span className="sm:hidden">{copy.t("sessionRestShort")}</span>
         </button>
 
         <div className="flex flex-col items-end gap-2">
@@ -358,7 +360,7 @@ export default function Session() {
             </button>
 
             <p className="font-fredoka text-sm uppercase tracking-widest text-[#84DCC6] font-bold mb-2">
-              Let's sound it out
+              {copy.t("sessionSoundItOut")}
             </p>
 
             <div className="flex items-center gap-3 mb-6 flex-wrap">
@@ -404,7 +406,7 @@ export default function Session() {
             </div>
 
             <p className="text-center text-sm text-gray-400 mt-4 font-fredoka">
-              No score change. Keep going whenever you're ready.
+              {copy.t("sessionNoScoreChange")}
             </p>
           </div>
         </div>

@@ -230,6 +230,112 @@ export interface ActivityEvent {
   createdAt: string;
 }
 
+export type PreferencesFontSize =
+  (typeof PreferencesFontSize)[keyof typeof PreferencesFontSize];
+
+export const PreferencesFontSize = {
+  small: "small",
+  medium: "medium",
+  large: "large",
+} as const;
+
+export type PreferencesSoundscape =
+  (typeof PreferencesSoundscape)[keyof typeof PreferencesSoundscape];
+
+export const PreferencesSoundscape = {
+  none: "none",
+  forest: "forest",
+  rain: "rain",
+  ocean: "ocean",
+} as const;
+
+/**
+ * British vs American English copy. Default en-GB. Grown-up-writable, kid-readable.
+ */
+export type PreferencesLanguageVariant =
+  (typeof PreferencesLanguageVariant)[keyof typeof PreferencesLanguageVariant];
+
+export const PreferencesLanguageVariant = {
+  "en-GB": "en-GB",
+  "en-US": "en-US",
+} as const;
+
+/**
+ * Per-profile reader preferences. weeklyEmail* fields are only present in the response when the grown-ups token is presented.
+ */
+export interface Preferences {
+  fontSize: PreferencesFontSize;
+  highContrast: boolean;
+  reducedMotion: boolean;
+  /**
+   * @minimum 0.5
+   * @maximum 1.5
+   */
+  voiceSpeed: number;
+  soundscape: PreferencesSoundscape;
+  soundEnabled: boolean;
+  /** British vs American English copy. Default en-GB. Grown-up-writable, kid-readable. */
+  languageVariant: PreferencesLanguageVariant;
+  sessionLengthSuggestionMin?: number;
+  breakReminders?: boolean;
+  weeklyEmailOptIn?: boolean;
+  /** @nullable */
+  weeklyEmailAddress?: string | null;
+}
+
+export type PreferencesPatchFontSize =
+  (typeof PreferencesPatchFontSize)[keyof typeof PreferencesPatchFontSize];
+
+export const PreferencesPatchFontSize = {
+  small: "small",
+  medium: "medium",
+  large: "large",
+} as const;
+
+export type PreferencesPatchSoundscape =
+  (typeof PreferencesPatchSoundscape)[keyof typeof PreferencesPatchSoundscape];
+
+export const PreferencesPatchSoundscape = {
+  none: "none",
+  forest: "forest",
+  rain: "rain",
+  ocean: "ocean",
+} as const;
+
+export type PreferencesPatchLanguageVariant =
+  (typeof PreferencesPatchLanguageVariant)[keyof typeof PreferencesPatchLanguageVariant];
+
+export const PreferencesPatchLanguageVariant = {
+  "en-GB": "en-GB",
+  "en-US": "en-US",
+} as const;
+
+/**
+ * Partial update. Grown-up-only fields require the x-grownup-token header.
+ */
+export interface PreferencesPatch {
+  fontSize?: PreferencesPatchFontSize;
+  highContrast?: boolean;
+  reducedMotion?: boolean;
+  /**
+   * @minimum 0.5
+   * @maximum 1.5
+   */
+  voiceSpeed?: number;
+  soundscape?: PreferencesPatchSoundscape;
+  soundEnabled?: boolean;
+  languageVariant?: PreferencesPatchLanguageVariant;
+  /**
+   * @minimum 5
+   * @maximum 60
+   */
+  sessionLengthSuggestionMin?: number;
+  breakReminders?: boolean;
+  weeklyEmailOptIn?: boolean;
+  /** Empty string clears the address. */
+  weeklyEmailAddress?: string;
+}
+
 /**
  * @nullable
  */

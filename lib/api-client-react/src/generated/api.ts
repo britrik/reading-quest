@@ -32,6 +32,8 @@ import type {
   HeartbeatRequest,
   PetItemRequest,
   PetState,
+  Preferences,
+  PreferencesPatch,
   Profile,
   PurchaseRequest,
   Session,
@@ -1862,3 +1864,166 @@ export function useGrownupsRecentActivity<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * Kid-readable. Personally-identifying grown-up fields (weeklyEmail*) are only included when the grown-ups token is presented.
+ * @summary Read the active profile's preferences
+ */
+export const getGetPreferencesUrl = () => {
+  return `/api/preferences`;
+};
+
+export const getPreferences = async (
+  options?: RequestInit,
+): Promise<Preferences> => {
+  return customFetch<Preferences>(getGetPreferencesUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetPreferencesQueryKey = () => {
+  return [`/api/preferences`] as const;
+};
+
+export const getGetPreferencesQueryOptions = <
+  TData = Awaited<ReturnType<typeof getPreferences>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getPreferences>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetPreferencesQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getPreferences>>> = ({
+    signal,
+  }) => getPreferences({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getPreferences>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetPreferencesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getPreferences>>
+>;
+export type GetPreferencesQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Read the active profile's preferences
+ */
+
+export function useGetPreferences<
+  TData = Awaited<ReturnType<typeof getPreferences>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getPreferences>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetPreferencesQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * Grown-up-only fields (sessionLengthSuggestionMin, breakReminders, weeklyEmail*, languageVariant) require the grown-ups token; kid-callable fields do not.
+ * @summary Patch the active profile's preferences
+ */
+export const getUpdatePreferencesUrl = () => {
+  return `/api/preferences`;
+};
+
+export const updatePreferences = async (
+  preferencesPatch: PreferencesPatch,
+  options?: RequestInit,
+): Promise<Preferences> => {
+  return customFetch<Preferences>(getUpdatePreferencesUrl(), {
+    ...options,
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(preferencesPatch),
+  });
+};
+
+export const getUpdatePreferencesMutationOptions = <
+  TError = ErrorType<ApiError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updatePreferences>>,
+    TError,
+    { data: BodyType<PreferencesPatch> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updatePreferences>>,
+  TError,
+  { data: BodyType<PreferencesPatch> },
+  TContext
+> => {
+  const mutationKey = ["updatePreferences"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updatePreferences>>,
+    { data: BodyType<PreferencesPatch> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return updatePreferences(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdatePreferencesMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updatePreferences>>
+>;
+export type UpdatePreferencesMutationBody = BodyType<PreferencesPatch>;
+export type UpdatePreferencesMutationError = ErrorType<ApiError>;
+
+/**
+ * @summary Patch the active profile's preferences
+ */
+export const useUpdatePreferences = <
+  TError = ErrorType<ApiError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updatePreferences>>,
+    TError,
+    { data: BodyType<PreferencesPatch> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updatePreferences>>,
+  TError,
+  { data: BodyType<PreferencesPatch> },
+  TContext
+> => {
+  return useMutation(getUpdatePreferencesMutationOptions(options));
+};
