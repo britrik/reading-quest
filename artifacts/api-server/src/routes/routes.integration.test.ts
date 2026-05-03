@@ -394,6 +394,55 @@ describe("story unlock with gems", () => {
     // A second unlock attempt is a no-op (no extra spend).
     const again = await request<UnlockResponse>("POST", `/api/stories/${locked!.id}/unlock`, undefined, headers);
     expect(again.body.alreadyUnlocked).toBe(true);
+
+    // Deep-link guard: GET /stories/:id and GET /chapters/:id now return the
+    // story content because we just unlocked it.
+    const storyAfter = await request<{ chapters: { id: number }[] }>(
+      "GET", `/api/stories/${locked!.id}`, undefined, headers,
+    );
+    expect(storyAfter.status).toBe(200);
+    const chId = storyAfter.body.chapters[0]!.id;
+    const chAfter = await request("GET", `/api/chapters/${chId}`, undefined, headers);
+    expect(chAfter.status).toBe(200);
+  });
+
+  it("blocks deep-link access to a locked story and its chapters", async () => {
+    // Reseed-safe: pick the second profile (or create one) to ensure they
+    // have NOT unlocked the same paid story we just unlocked above.
+    const created = await request<ProfileRow>(
+      "POST", "/api/profiles",
+      { name: "Locked Larry", avatar: "owl" },
+      GROWNUP,
+    );
+    const headers = { "x-profile-id": String(created.body.id) };
+    const stories = await request<StoryRow[]>("GET", "/api/worlds/1/stories", undefined, headers);
+    const locked = stories.body.find((s) => s.gemUnlockCost > 0)!;
+    expect(locked).toBeDefined();
+
+    // GET /stories/:id must 403 even though the story exists.
+    const storyResp = await request<{ error: string; gemUnlockCost: number }>(
+      "GET", `/api/stories/${locked.id}`, undefined, headers,
+    );
+    expect(storyResp.status).toBe(403);
+    expect(storyResp.body.gemUnlockCost).toBe(locked.gemUnlockCost);
+
+    // Pick a chapter id by hitting another (free) story to discover the schema,
+    // then derive the locked story's chapter id by listing via worlds endpoint.
+    // Easier: peek the chapter id via the unlock+read path on the active
+    // (unlocked) profile from the previous test, then verify GET /chapters/:id
+    // is blocked for THIS profile.
+    const ownerHeaders = { "x-profile-id": "1" };
+    const ownerStory = await request<{ chapters: { id: number }[] }>(
+      "GET", `/api/stories/${locked.id}`, undefined, ownerHeaders,
+    );
+    if (ownerStory.status === 200 && ownerStory.body.chapters.length > 0) {
+      const chId = ownerStory.body.chapters[0]!.id;
+      const chBlocked = await request("GET", `/api/chapters/${chId}`, undefined, headers);
+      expect(chBlocked.status).toBe(403);
+    }
+
+    // Cleanup the helper profile.
+    await request("DELETE", `/api/profiles/${created.body.id}`, undefined, GROWNUP);
   });
 
   it("refuses to unlock when the profile cannot afford it", async () => {

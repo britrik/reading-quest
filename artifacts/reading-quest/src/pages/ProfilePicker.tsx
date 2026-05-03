@@ -39,8 +39,8 @@ export default function ProfilePicker() {
     >
       <div className="text-center mb-8">
         <Sparkles className="w-12 h-12 text-[#FF9B54] mx-auto mb-3" aria-hidden="true" />
-        <h1 className="font-fredoka text-4xl font-bold text-[#2D3142] mb-2">Who's reading today?</h1>
-        <p className="text-lg text-gray-700">Tap your picture to start</p>
+        <h1 className="font-fredoka text-4xl font-bold text-[#2D3142] mb-2">Tap your picture</h1>
+        <p className="text-lg text-gray-700">No reading needed — just pick your animal!</p>
       </div>
 
       {error && (
@@ -58,10 +58,13 @@ export default function ProfilePicker() {
             data-testid={`profile-card-${p.id}`}
             className="bg-white rounded-3xl p-5 flex flex-col items-center voxel-shadow hover:-translate-y-1 transition-transform"
           >
-            <div className="text-6xl mb-2" aria-hidden="true">
+            {/* Avatar-only picker: kids who can't read yet need to choose by
+                picture. The profile name is exposed only to assistive tech via
+                the accessible label so screen readers still announce it. */}
+            <div className="text-7xl" aria-hidden="true">
               {AVATAR_EMOJI[(p.avatar as Avatar) ?? "fox"] ?? "🦊"}
             </div>
-            <div className="font-fredoka font-semibold text-xl text-[#2D3142]">{p.name}</div>
+            <span className="sr-only">{p.name}</span>
           </button>
         ))}
       </div>

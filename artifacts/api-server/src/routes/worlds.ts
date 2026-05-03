@@ -133,12 +133,27 @@ router.get("/stories/:storyId", async (req, res) => {
     res.status(404).json({ error: "Story not found" });
     return;
   }
+  const profile = await resolveProfile(req);
+  // Deep-link guard: a paid story must be unlocked for this profile before
+  // its chapter list can be read. Without this, knowing the URL would skip
+  // the unlock/spend mechanic.
+  const s0 = story[0]!;
+  if (s0.gemUnlockCost > 0) {
+    const unlocks = await unlockedStoryIdsFor(profile.id, [s0.id]);
+    if (!unlocks.has(s0.id)) {
+      res.status(403).json({
+        error: "Story is locked",
+        gemUnlockCost: s0.gemUnlockCost,
+        gemsRemaining: profile.gems,
+      });
+      return;
+    }
+  }
   const chapters = await db
     .select()
     .from(chaptersTable)
     .where(eq(chaptersTable.storyId, storyId))
     .orderBy(asc(chaptersTable.sortIndex));
-  const profile = await resolveProfile(req);
   const finished = chapters.length
     ? await db
         .select()
@@ -176,6 +191,25 @@ router.get("/chapters/:chapterId", async (req, res) => {
     return;
   }
   const c = rows[0]!;
+  // Deep-link guard: enforce the parent story's unlock status here too, so
+  // a kid cannot bypass the unlock by jumping straight to a chapter URL.
+  const profile = await resolveProfile(req);
+  const parent = await db.select().from(storiesTable).where(eq(storiesTable.id, c.storyId)).limit(1);
+  if (parent.length === 0) {
+    res.status(404).json({ error: "Story not found" });
+    return;
+  }
+  const parentStory = parent[0]!;
+  if (parentStory.gemUnlockCost > 0) {
+    const unlocks = await unlockedStoryIdsFor(profile.id, [parentStory.id]);
+    if (!unlocks.has(parentStory.id)) {
+      res.status(403).json({
+        error: "Story is locked",
+        gemUnlockCost: parentStory.gemUnlockCost,
+      });
+      return;
+    }
+  }
   const sibs = await db
     .select()
     .from(chaptersTable)
