@@ -12,6 +12,7 @@ export const childProfilesTable = pgTable("child_profiles", {
   happiness: integer("happiness").notNull().default(70),
   equippedHat: text("equipped_hat"),
   glowColor: text("glow_color").notNull().default("mint"),
+  companion: text("companion"),
   onboardedAt: timestamp("onboarded_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
@@ -29,6 +30,8 @@ export const preferencesTable = pgTable(
     soundEnabled: boolean("sound_enabled").notNull().default(true),
     sessionLengthSuggestionMin: integer("session_length_min").notNull().default(15),
     breakReminders: boolean("break_reminders").notNull().default(true),
+    weeklyEmailOptIn: boolean("weekly_email_opt_in").notNull().default(false),
+    weeklyEmailAddress: text("weekly_email_address"),
   },
   (t) => ({
     profileUnique: uniqueIndex("preferences_profile_unique").on(t.profileId),

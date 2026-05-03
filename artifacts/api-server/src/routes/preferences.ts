@@ -18,6 +18,8 @@ const PreferencesBody = z.object({
   soundEnabled: z.boolean().optional(),
   sessionLengthSuggestionMin: z.number().int().min(5).max(60).optional(),
   breakReminders: z.boolean().optional(),
+  weeklyEmailOptIn: z.boolean().optional(),
+  weeklyEmailAddress: z.union([z.string().email(), z.literal("")]).optional(),
 });
 
 function serialize(row: typeof preferencesTable.$inferSelect) {
@@ -30,6 +32,8 @@ function serialize(row: typeof preferencesTable.$inferSelect) {
     soundEnabled: row.soundEnabled,
     sessionLengthSuggestionMin: row.sessionLengthSuggestionMin,
     breakReminders: row.breakReminders,
+    weeklyEmailOptIn: row.weeklyEmailOptIn,
+    weeklyEmailAddress: row.weeklyEmailAddress,
   };
 }
 
@@ -79,6 +83,10 @@ router.put("/preferences", async (req, res) => {
   if (parsed.data.sessionLengthSuggestionMin !== undefined)
     patch.sessionLengthSuggestionMin = parsed.data.sessionLengthSuggestionMin;
   if (parsed.data.breakReminders !== undefined) patch.breakReminders = parsed.data.breakReminders;
+  if (parsed.data.weeklyEmailOptIn !== undefined) patch.weeklyEmailOptIn = parsed.data.weeklyEmailOptIn;
+  if (parsed.data.weeklyEmailAddress !== undefined) {
+    patch.weeklyEmailAddress = parsed.data.weeklyEmailAddress === "" ? null : parsed.data.weeklyEmailAddress;
+  }
 
   if (Object.keys(patch).length > 0) {
     await db.update(preferencesTable).set(patch).where(eq(preferencesTable.profileId, profile.id));

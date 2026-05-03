@@ -91,6 +91,45 @@ test.describe("Grown-ups extras: vocabulary, weekly summary, export, profile man
     await expect(list.getByText("Robin")).toHaveCount(0);
   });
 
+  test("profile manager can rename a profile inline", async ({ page }) => {
+    await logIntoGrownups(page);
+    // Add a fresh profile to avoid renaming the canonical Alex used elsewhere.
+    await page.getByTestId("open-add-profile").click();
+    await page.getByTestId("manager-profile-name").fill("Riley");
+    await page.getByTestId("manager-add-submit").click();
+    const list = page.getByTestId("profile-manager-list");
+    await expect(list.getByText("Riley")).toBeVisible();
+
+    const newId = await page.evaluate(async () => {
+      const res = await fetch("/api/profiles");
+      const data = (await res.json()) as Array<{ id: number; name: string }>;
+      return data.find((p) => p.name === "Riley")?.id ?? null;
+    });
+    expect(newId).not.toBeNull();
+
+    await page.getByTestId(`manager-rename-${newId}`).click();
+    const input = page.getByTestId(`manager-rename-input-${newId}`);
+    await input.fill("Riley Renamed");
+    await page.getByTestId(`manager-rename-save-${newId}`).click();
+    await expect(list.getByText("Riley Renamed")).toBeVisible();
+    await expect(list.getByText("Riley", { exact: true })).toHaveCount(0);
+  });
+
+  test("grown-ups settings panel persists session length and weekly email", async ({ page, request }) => {
+    await logIntoGrownups(page);
+    const card = page.getByTestId("grownups-settings");
+    await expect(card).toBeVisible();
+    await page.getByTestId("settings-weekly-email").check();
+    await page.getByTestId("settings-weekly-email-address").fill("grown@example.com");
+    await page.getByTestId("settings-weekly-email-address").blur();
+    await page.waitForTimeout(300);
+    const prefs = await (
+      await request.get("/api/preferences", { headers: { "x-profile-id": "1" } })
+    ).json();
+    expect(prefs.weeklyEmailOptIn).toBe(true);
+    expect(prefs.weeklyEmailAddress).toBe("grown@example.com");
+  });
+
   test("home page exposes settings + switch-profile shortcuts", async ({ page }) => {
     const id = await getFirstProfileId();
     await setActiveProfileForPage(page, id);

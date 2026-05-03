@@ -4,6 +4,7 @@ import { BookOpen, Clock, Sparkles, TrendingUp, MessageSquareHeart, ShieldCheck,
 import VocabularyPanel from "@/components/grownups/VocabularyPanel";
 import WeeklySummaryCard from "@/components/grownups/WeeklySummaryCard";
 import ProfileManager from "@/components/grownups/ProfileManager";
+import GrownupsSettingsCard from "@/components/grownups/GrownupsSettingsCard";
 import {
   useGrownupsAuth,
   useGrownupsSummary,
@@ -332,7 +333,11 @@ function Dashboard({ token, onLogout }: { token: string, onLogout: () => void })
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
-          <ProfileManager />
+          <GrownupsSettingsCard token={token} />
+          <ProfileManager token={token} />
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 mb-6">
           <DataExportCard token={token} />
         </div>
 

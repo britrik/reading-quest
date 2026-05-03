@@ -68,7 +68,7 @@ test.describe("Cozy Settings", () => {
   test("preferences are scoped per-profile", async ({ request }) => {
     const id1 = await getFirstProfileId();
     const created = await request.post("/api/profiles", {
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", "x-grownup-token": "grownup:e2e-token" },
       data: { name: "Pref2", avatar: "bunny" },
     });
     const p2 = (await created.json()) as { id: number };

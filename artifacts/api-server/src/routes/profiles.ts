@@ -2,10 +2,12 @@ import { Router, type IRouter } from "express";
 import { db, childProfilesTable, preferencesTable, sessionsTable, wordHelpEventsTable, finishedChaptersTable, transactionsTable, ownedItemsTable, decorStateTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
+import { isGrownupAuthorized, requireGrownup } from "../lib/grownup-auth";
 
 const router: IRouter = Router();
 
 const AVATARS = ["fox", "owl", "bunny", "turtle", "star", "moon"] as const;
+const COMPANIONS = ["fox", "owl", "bunny"] as const;
 
 const CreateProfileBody = z.object({
   name: z.string().trim().min(1).max(40),
@@ -14,6 +16,7 @@ const CreateProfileBody = z.object({
 const UpdateProfileBody = z.object({
   name: z.string().trim().min(1).max(40).optional(),
   avatar: z.enum(AVATARS).optional(),
+  companion: z.union([z.enum(COMPANIONS), z.null()]).optional(),
   onboardedAt: z.union([z.string().datetime(), z.null()]).optional(),
 });
 
@@ -24,6 +27,7 @@ router.get("/profiles", async (_req, res) => {
       id: p.id,
       name: p.name,
       avatar: p.avatar,
+      companion: p.companion,
       gems: p.gems,
       stars: p.stars,
       onboarded: p.onboardedAt !== null,
@@ -32,6 +36,7 @@ router.get("/profiles", async (_req, res) => {
 });
 
 router.post("/profiles", async (req, res) => {
+  if (!requireGrownup(req, res)) return;
   const parsed = CreateProfileBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid body" });
@@ -47,6 +52,7 @@ router.post("/profiles", async (req, res) => {
     id: p.id,
     name: p.name,
     avatar: p.avatar,
+    companion: p.companion,
     gems: p.gems,
     stars: p.stars,
     onboarded: false,
@@ -64,9 +70,18 @@ router.patch("/profiles/:id", async (req, res) => {
     res.status(400).json({ error: "Invalid body" });
     return;
   }
+  // Mutating identity fields (name/avatar) is grown-ups-only. The kid app may
+  // still set their own companion + onboardedAt during the onboarding flow.
+  const touchesIdentity =
+    parsed.data.name !== undefined || parsed.data.avatar !== undefined;
+  if (touchesIdentity && !isGrownupAuthorized(req)) {
+    res.status(401).json({ error: "Grown-ups passcode required" });
+    return;
+  }
   const patch: Record<string, unknown> = {};
   if (parsed.data.name !== undefined) patch.name = parsed.data.name;
   if (parsed.data.avatar !== undefined) patch.avatar = parsed.data.avatar;
+  if (parsed.data.companion !== undefined) patch.companion = parsed.data.companion;
   if (parsed.data.onboardedAt !== undefined) {
     patch.onboardedAt = parsed.data.onboardedAt === null ? null : new Date(parsed.data.onboardedAt);
   }
@@ -84,6 +99,7 @@ router.patch("/profiles/:id", async (req, res) => {
     id: p.id,
     name: p.name,
     avatar: p.avatar,
+    companion: p.companion,
     gems: p.gems,
     stars: p.stars,
     onboarded: p.onboardedAt !== null,
@@ -91,18 +107,17 @@ router.patch("/profiles/:id", async (req, res) => {
 });
 
 router.delete("/profiles/:id", async (req, res) => {
+  if (!requireGrownup(req, res)) return;
   const id = Number.parseInt(req.params.id ?? "", 10);
   if (!Number.isFinite(id)) {
     res.status(400).json({ error: "Invalid id" });
     return;
   }
-  // Refuse to delete the last profile so the kid app always has something to load.
   const all = await db.select({ id: childProfilesTable.id }).from(childProfilesTable);
   if (all.length <= 1) {
     res.status(400).json({ error: "Cannot delete the last profile" });
     return;
   }
-  // Cascade-clean per-profile data.
   await db.delete(wordHelpEventsTable).where(eq(wordHelpEventsTable.profileId, id));
   await db.delete(sessionsTable).where(eq(sessionsTable.profileId, id));
   await db.delete(finishedChaptersTable).where(eq(finishedChaptersTable.profileId, id));

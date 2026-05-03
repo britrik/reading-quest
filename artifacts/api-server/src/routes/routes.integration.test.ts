@@ -188,3 +188,125 @@ describe("grownups auth + payload contracts", () => {
     expect(r.status).toBe(401);
   });
 });
+
+interface ProfileRow {
+  id: number;
+  name: string;
+  avatar: string;
+  companion: string | null;
+  gems: number;
+  stars: number;
+  onboarded: boolean;
+}
+interface PrefsRow {
+  voiceSpeed: number;
+  sessionLengthSuggestionMin: number;
+  breakReminders: boolean;
+  weeklyEmailOptIn: boolean;
+  weeklyEmailAddress: string | null;
+}
+
+const GROWNUP = { "x-grownup-token": "grownup:test-integration" };
+
+describe("profiles CRUD + grown-ups gate", () => {
+  it("rejects POST /api/profiles without a grown-ups token", async () => {
+    const r = await request("POST", "/api/profiles", { name: "Nope" });
+    expect(r.status).toBe(401);
+  });
+
+  it("creates a profile when the token is present and rejects identity edits without it", async () => {
+    const created = await request<ProfileRow>("POST", "/api/profiles", { name: "Quinn", avatar: "owl" }, GROWNUP);
+    expect(created.status).toBe(201);
+    expect(created.body.name).toBe("Quinn");
+    expect(created.body.onboarded).toBe(false);
+
+    // Renaming requires the token.
+    const unauthRename = await request("PATCH", `/api/profiles/${created.body.id}`, { name: "Renamed" });
+    expect(unauthRename.status).toBe(401);
+
+    const renamed = await request<ProfileRow>(
+      "PATCH", `/api/profiles/${created.body.id}`, { name: "Renamed" }, GROWNUP,
+    );
+    expect(renamed.status).toBe(200);
+    expect(renamed.body.name).toBe("Renamed");
+
+    // Companion + onboardedAt are kid-callable (no token).
+    const kidPatch = await request<ProfileRow>("PATCH", `/api/profiles/${created.body.id}`, {
+      companion: "fox",
+      onboardedAt: new Date().toISOString(),
+    });
+    expect(kidPatch.status).toBe(200);
+    expect(kidPatch.body.companion).toBe("fox");
+    expect(kidPatch.body.onboarded).toBe(true);
+
+    // Delete requires the token.
+    const unauthDel = await request("DELETE", `/api/profiles/${created.body.id}`);
+    expect(unauthDel.status).toBe(401);
+    const del = await request("DELETE", `/api/profiles/${created.body.id}`, undefined, GROWNUP);
+    expect(del.status).toBe(200);
+  });
+
+  it("refuses to delete the last remaining profile", async () => {
+    // Make sure we are down to 1 profile by clearing extras created above.
+    const list = await request<ProfileRow[]>("GET", "/api/profiles");
+    while (list.body.length > 1) {
+      const target = list.body.pop()!;
+      await request("DELETE", `/api/profiles/${target.id}`, undefined, GROWNUP);
+    }
+    const after = await request<ProfileRow[]>("GET", "/api/profiles");
+    expect(after.body.length).toBe(1);
+    const r = await request("DELETE", `/api/profiles/${after.body[0]!.id}`, undefined, GROWNUP);
+    expect(r.status).toBe(400);
+  });
+});
+
+describe("preferences GET/PUT including grown-ups extras", () => {
+  it("round-trips weekly email opt-in and address", async () => {
+    const list = await request<ProfileRow[]>("GET", "/api/profiles");
+    const id = list.body[0]!.id;
+    const headers = { "x-profile-id": String(id) };
+
+    // Reset to a known starting state — tests above this one may have left
+    // weekly-email prefs set via summary fixtures.
+    await request<PrefsRow>("PUT", "/api/preferences", {
+      weeklyEmailOptIn: false,
+      weeklyEmailAddress: "",
+    }, headers);
+    const before = await request<PrefsRow>("GET", "/api/preferences", undefined, headers);
+    expect(before.status).toBe(200);
+    expect(before.body.weeklyEmailOptIn).toBe(false);
+    expect(before.body.weeklyEmailAddress).toBeNull();
+
+    const put = await request<PrefsRow>("PUT", "/api/preferences", {
+      weeklyEmailOptIn: true,
+      weeklyEmailAddress: "grown@example.com",
+      sessionLengthSuggestionMin: 25,
+      breakReminders: false,
+    }, headers);
+    expect(put.status).toBe(200);
+    expect(put.body.weeklyEmailOptIn).toBe(true);
+    expect(put.body.weeklyEmailAddress).toBe("grown@example.com");
+    expect(put.body.sessionLengthSuggestionMin).toBe(25);
+    expect(put.body.breakReminders).toBe(false);
+
+    // Empty string clears the address back to null.
+    const cleared = await request<PrefsRow>("PUT", "/api/preferences", {
+      weeklyEmailAddress: "",
+    }, headers);
+    expect(cleared.body.weeklyEmailAddress).toBeNull();
+  });
+});
+
+describe("seed library size", () => {
+  it("ships at least 6 worlds, each with >= 3 stories of >= 5 chapters", async () => {
+    const worlds = await request<World[]>("GET", "/api/worlds");
+    expect(worlds.body.length).toBeGreaterThanOrEqual(6);
+    for (const w of worlds.body) {
+      const stories = await request<Story[]>("GET", `/api/worlds/${w.id}/stories`);
+      expect(stories.body.length, `world ${w.slug}`).toBeGreaterThanOrEqual(3);
+      for (const s of stories.body) {
+        expect(s.chapterCount, `story ${s.title}`).toBeGreaterThanOrEqual(5);
+      }
+    }
+  });
+});

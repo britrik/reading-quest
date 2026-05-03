@@ -64,6 +64,7 @@ router.post("/test/reset", async (req, res) => {
         happiness: 70,
         equippedHat: null,
         glowColor: "mint",
+        companion: sql`null`,
         onboardedAt: sql`null`,
       });
   }

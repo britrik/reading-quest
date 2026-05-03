@@ -45,7 +45,7 @@ export async function resetTestProfile(opts: { onboarded?: boolean } = { onboard
     if (id !== undefined) {
       await ctx.patch(`${API_BASE}/api/profiles/${id}`, {
         data: { onboardedAt: new Date().toISOString() },
-        headers: { "content-type": "application/json" },
+        headers: { "content-type": "application/json", "x-grownup-token": "grownup:e2e-token" },
       });
     }
   }

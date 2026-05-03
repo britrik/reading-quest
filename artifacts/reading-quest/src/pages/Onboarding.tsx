@@ -30,7 +30,7 @@ export default function Onboarding() {
     const id = getActiveProfileId();
     if (id !== null) {
       try {
-        await markOnboarded(id);
+        await markOnboarded(id, pickedCompanion);
       } catch {
         /* non-fatal */
       }
