@@ -1,15 +1,11 @@
 import { request, type Page, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 
+// Defaults match the api-server `dev` script so `pnpm run test:e2e` is
+// self-contained against the local dev workflow. Production builds never set
+// ENABLE_E2E_TEST_ROUTES=true so the route is 404 regardless of secret.
 const API_BASE = process.env.E2E_API_URL || "http://localhost:80";
-const TEST_SECRET = process.env.E2E_TEST_SECRET;
-
-if (!TEST_SECRET) {
-  throw new Error(
-    "E2E_TEST_SECRET env var is required for the test reset helper. " +
-      "Pull it from the api-server dev workflow log (printed once at startup).",
-  );
-}
+const TEST_SECRET = process.env.E2E_TEST_SECRET || "rq-dev-e2e-secret";
 
 const SECRET_HEADER = { "x-e2e-test-secret": TEST_SECRET };
 

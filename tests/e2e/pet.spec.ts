@@ -45,6 +45,27 @@ test("snack purchase consumes gems and bumps fullness", async ({ page }) => {
   expect(petAfter.gems).toBe(before.gems - 1);
 });
 
+test("equipped hat persists across a full page reload", async ({ page }) => {
+  const ids = await getFirstChapterIds();
+  let s = await apiPost("/api/sessions", { chapterId: ids.chapterId });
+  await apiPost(`/api/sessions/${s.id}/finish`);
+  const story = await apiGet(`/api/stories/${ids.storyId}`);
+  s = await apiPost("/api/sessions", { chapterId: story.chapters[1].id });
+  await apiPost(`/api/sessions/${s.id}/finish`);
+
+  await page.goto("/pet");
+  await waitForRoot(page);
+  await page.getByRole("button", { name: /dress up/i }).click();
+  await page.getByRole("button", { name: /tiny crown/i }).first().click();
+  await expect.poll(async () => (await apiGet("/api/pet")).equippedHat, { timeout: 5_000 }).toBe("hat.crown");
+
+  // Hard reload — the equipped hat must still be reflected after a fresh boot.
+  await page.reload();
+  await waitForRoot(page);
+  const after = await apiGet("/api/pet");
+  expect(after.equippedHat).toBe("hat.crown");
+});
+
 test("equip + unequip a hat updates pet state", async ({ page }) => {
   // Need ≥6 gems for Tiny Crown — finish two chapters.
   const ids = await getFirstChapterIds();

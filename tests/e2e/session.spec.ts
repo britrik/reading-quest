@@ -31,10 +31,34 @@ test("session screen renders chapter content + word-help affordance", async ({ p
   expect(paragraphChars).toBeGreaterThan(40);
 });
 
-test("word-help opens a no-penalty syllable sheet that can be dismissed", async ({ page }) => {
+test("word-help opens a no-penalty syllable sheet, plays speech, and can be dismissed", async ({ page }) => {
+  // Stub speechSynthesis BEFORE navigation so the page sees our spy on first
+  // render. We track every utterance text passed to .speak() and fire the
+  // 'end' event so the UI's Promise resolves as it would in a real browser.
+  await page.addInitScript(() => {
+    (window as unknown as { __spoken: string[] }).__spoken = [];
+    const fakeSynth = {
+      cancel: () => {},
+      speak: (utter: SpeechSynthesisUtterance) => {
+        (window as unknown as { __spoken: string[] }).__spoken.push(utter.text);
+        setTimeout(() => utter.onend?.(new Event("end") as SpeechSynthesisEvent), 0);
+      },
+      getVoices: () => [],
+      pending: false,
+      speaking: false,
+      paused: false,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    };
+    Object.defineProperty(window, "speechSynthesis", {
+      configurable: true,
+      get: () => fakeSynth,
+    });
+  });
+
   await openFirstChapter(page);
 
-  // Toggle help-mode on so tappable words are activated.
+  // Toggle help-mode so tappable words become activated.
   await page.getByRole("button", { name: /stuck on a word/i }).click();
   await expect(page.getByText(/sound it out/i)).toBeVisible();
 
@@ -43,43 +67,42 @@ test("word-help opens a no-penalty syllable sheet that can be dismissed", async 
   await expect(tappable).toBeVisible();
   await tappable.click();
 
-  // The syllable sheet appears, with at least one syllable chip and the
-  // no-score reassurance copy. Crucially, no penalty / minus copy is shown.
+  // The syllable sheet appears with reassurance copy and no penalty wording.
   await expect(page.getByText(/let's sound it out/i)).toBeVisible();
-  await expect(page.getByRole("button", { name: /hear it/i })).toBeVisible();
   await expect(page.getByText(/no score change/i)).toBeVisible();
   await expect(page.locator("body")).not.toContainText(/penalty|wrong|minus|-1\b/i);
 
-  // Dismiss via the explicit Close button.
+  // Reset the spoken-utterance buffer so we causally tie the next assertion
+  // to the Hear-it click (clicking the tappable word also speaks). Then click
+  // Hear it and verify a NEW utterance was sent to speechSynthesis.speak.
+  await page.evaluate(() => { (window as unknown as { __spoken: string[] }).__spoken = []; });
+  await page.getByRole("button", { name: /hear it/i }).click();
+  await expect
+    .poll(async () => page.evaluate(() => (window as unknown as { __spoken: string[] }).__spoken.length), {
+      timeout: 5_000,
+    })
+    .toBeGreaterThan(0);
+
+  // Dismiss via Close.
   await page.getByRole("button", { name: /close/i }).click();
   await expect(page.getByText(/let's sound it out/i)).toHaveCount(0);
 });
 
-test("finishing the chapter awards gems + stars and they appear on home", async ({ page }) => {
+test("clicking Follow the fox advances the chapter via the UI", async ({ page }) => {
+  // UI-driven exercise of the primary advance button. We don't assert reward
+  // bookkeeping here because Session.tsx currently has a startSession effect
+  // that re-fires when its mutation invalidates getActiveSession (queued for
+  // Task #7 polish). The reward bookkeeping is asserted via the API path in
+  // tests/e2e/home.spec.ts ("home propagates gems earned from a finished
+  // chapter") and in tests/e2e/grownups.spec.ts.
   const { storyId, chapterId } = await openFirstChapter(page);
 
-  const before = await getMe();
-  // Drive the finish via the same endpoint the UI calls. Asserting through the
-  // session POST is more reliable than waiting on toast animations.
-  const active = await apiGet("/api/sessions/active");
-  expect(active?.chapterId).toBe(chapterId);
-  const finished = await apiPost(`/api/sessions/${active.id}/finish`);
-  expect(finished.gemsAwarded).toBeGreaterThan(0);
-  expect(finished.starsAwarded).toBeGreaterThan(0);
+  await page.getByRole("button", { name: /follow the fox|finish story/i }).click();
 
-  const after = await getMe();
-  expect(after.gems).toBe(before.gems + finished.gemsAwarded);
-  expect(after.stars).toBe(before.stars + finished.starsAwarded);
-
-  // Cross-screen propagation: navigate to home and confirm the new totals
-  // are reflected in the HUD copy.
-  await page.goto("/");
-  await waitForRoot(page);
-  await expect(page.locator("body")).toContainText(String(after.gems));
-  await expect(page.locator("body")).toContainText(String(after.stars));
-
-  // Sanity: storyId still exists in URL space (we navigated away cleanly).
-  expect(storyId).toBeGreaterThan(0);
+  // The route navigates either to the next chapter or back to the story page.
+  await expect(page).toHaveURL(new RegExp(`/story/${storyId}(/chapter/(?!${chapterId}\\b)\\d+)?$`), {
+    timeout: 10_000,
+  });
 });
 
 test("take-a-break (Rest) returns home and the same chapter resumes on revisit", async ({ page }) => {
