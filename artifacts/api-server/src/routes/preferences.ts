@@ -10,19 +10,22 @@ const router: IRouter = Router();
 const FONT_SIZES = ["small", "medium", "large"] as const;
 const SOUNDSCAPES = ["none", "forest", "rain", "ocean"] as const;
 
-// Kid-safe fields the kid app may modify without grown-ups auth.
+// Kid-safe fields the kid app may modify without grown-ups auth. voiceSpeed
+// lives here because it is a kid-comfort setting (read-aloud speed) that the
+// kid Cozy Settings UI exposes directly.
 const KidPreferencesBody = z.object({
   fontSize: z.enum(FONT_SIZES).optional(),
   highContrast: z.boolean().optional(),
   reducedMotion: z.boolean().optional(),
+  voiceSpeed: z.number().min(0.5).max(1.5).optional(),
   soundscape: z.enum(SOUNDSCAPES).optional(),
   soundEnabled: z.boolean().optional(),
 });
 
-// Grown-up-only fields. Anyone can READ these, but writes require the
-// grown-ups token to defend against a kid changing parental controls.
+// Grown-up-only fields. Writes require the grown-ups token (parental control
+// fields) and so do reads of the personally-identifying ones (weeklyEmail*).
+// We strip these from kid-side GETs so a kid cannot peek at the email address.
 const GrownupPreferencesBody = z.object({
-  voiceSpeed: z.number().min(0.5).max(1.5).optional(),
   sessionLengthSuggestionMin: z.number().int().min(5).max(60).optional(),
   breakReminders: z.boolean().optional(),
   weeklyEmailOptIn: z.boolean().optional(),
@@ -32,14 +35,18 @@ const GrownupPreferencesBody = z.object({
 const PreferencesBody = KidPreferencesBody.merge(GrownupPreferencesBody);
 const GROWNUP_FIELDS = new Set(Object.keys(GrownupPreferencesBody.shape));
 
-function serialize(row: typeof preferencesTable.$inferSelect) {
-  return {
+function serialize(row: typeof preferencesTable.$inferSelect, includeGrownup: boolean) {
+  const base = {
     fontSize: row.fontSize,
     highContrast: row.highContrast,
     reducedMotion: row.reducedMotion,
     voiceSpeed: Math.round(row.voiceSpeed) / 10,
     soundscape: row.soundscape,
     soundEnabled: row.soundEnabled,
+  };
+  if (!includeGrownup) return base;
+  return {
+    ...base,
     sessionLengthSuggestionMin: row.sessionLengthSuggestionMin,
     breakReminders: row.breakReminders,
     weeklyEmailOptIn: row.weeklyEmailOptIn,
@@ -71,7 +78,7 @@ async function getOrCreate(profileId: number) {
 router.get("/preferences", async (req, res) => {
   const profile = await resolveProfile(req);
   const row = await getOrCreate(profile.id);
-  res.json(serialize(row));
+  res.json(serialize(row, isGrownupAuthorized(req)));
 });
 
 router.put("/preferences", async (req, res) => {
@@ -110,7 +117,7 @@ router.put("/preferences", async (req, res) => {
     await db.update(preferencesTable).set(patch).where(eq(preferencesTable.profileId, profile.id));
   }
   const updated = await getOrCreate(profile.id);
-  res.json(serialize(updated));
+  res.json(serialize(updated, isGrownupAuthorized(req)));
 });
 
 export default router;

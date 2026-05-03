@@ -48,6 +48,15 @@ export function playGemEarn(enabled: boolean): void {
   tone(ctx, 1318.5, 160, 80, 0.06);
 }
 
+export function playHatEquip(enabled: boolean): void {
+  if (!enabled) return;
+  const ctx = getCtx();
+  if (!ctx) return;
+  // Soft "pop" — quick low-to-mid blip
+  tone(ctx, 392, 90, 0, 0.05);
+  tone(ctx, 587.33, 140, 60, 0.05);
+}
+
 export function playUnlock(enabled: boolean): void {
   if (!enabled) return;
   const ctx = getCtx();

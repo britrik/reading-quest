@@ -70,19 +70,29 @@ router.patch("/profiles/:id", async (req, res) => {
     res.status(400).json({ error: "Invalid body" });
     return;
   }
-  // Mutating identity fields (name/avatar) is normally grown-ups-only, but the
-  // kid app may set its own name during the initial onboarding flow (i.e. when
-  // the profile has not yet been onboarded). After that, any rename requires
-  // the grown-ups passcode. companion + onboardedAt are always kid-callable.
-  // Identity (name/avatar) is grown-ups-only EXCEPT when the kid is completing
-  // onboarding in this same PATCH (i.e. setting onboardedAt). That's the only
-  // moment the kid app is allowed to write a name without the passcode; all
-  // later renames require the grown-up token.
+  // Identity (name/avatar) is grown-ups-only EXCEPT during the kid's first-time
+  // onboarding completion. To make sure this carve-out cannot be abused as a
+  // generic rename channel, we load the existing profile first and require:
+  //   1. the current row has not been onboarded yet (onboardedAt IS NULL), AND
+  //   2. this PATCH is the one that sets onboardedAt (settingOnboardedNow).
+  // Any later rename, or any attempt to set name without setting onboardedAt,
+  // falls through to the grown-ups token check.
+  const existingRows = await db
+    .select()
+    .from(childProfilesTable)
+    .where(eq(childProfilesTable.id, id))
+    .limit(1);
+  const existing = existingRows[0];
+  if (!existing) {
+    res.status(404).json({ error: "Not found" });
+    return;
+  }
   const touchesIdentity =
     parsed.data.name !== undefined || parsed.data.avatar !== undefined;
   const settingOnboardedNow =
     parsed.data.onboardedAt !== undefined && parsed.data.onboardedAt !== null;
-  if (touchesIdentity && !isGrownupAuthorized(req) && !settingOnboardedNow) {
+  const isOnboardingCompletion = existing.onboardedAt === null && settingOnboardedNow;
+  if (touchesIdentity && !isGrownupAuthorized(req) && !isOnboardingCompletion) {
     res.status(401).json({ error: "Grown-ups passcode required" });
     return;
   }

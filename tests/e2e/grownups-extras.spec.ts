@@ -123,8 +123,12 @@ test.describe("Grown-ups extras: vocabulary, weekly summary, export, profile man
     await page.getByTestId("settings-weekly-email-address").fill("grown@example.com");
     await page.getByTestId("settings-weekly-email-address").blur();
     await page.waitForTimeout(300);
+    // grown-up-only fields are only included in the response when the
+    // grown-up token is present (privacy).
     const prefs = await (
-      await request.get("/api/preferences", { headers: { "x-profile-id": "1" } })
+      await request.get("/api/preferences", {
+        headers: { "x-profile-id": "1", "x-grownup-token": "grownup:e2e-token" },
+      })
     ).json();
     expect(prefs.weeklyEmailOptIn).toBe(true);
     expect(prefs.weeklyEmailAddress).toBe("grown@example.com");

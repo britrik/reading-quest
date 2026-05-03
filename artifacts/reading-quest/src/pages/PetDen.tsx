@@ -18,6 +18,10 @@ import { useQueryClient } from "@tanstack/react-query";
 import { PageLoader, PageError } from "@/components/PageStates";
 import { getImageUrl } from "@/lib/utils";
 import type { ShopItem, PetState } from "@workspace/api-client-react";
+import { playGemEarn, playHatEquip } from "@/lib/sound";
+import { fetchPreferences } from "@/lib/preferences";
+import { getActiveProfileId } from "@/lib/profile";
+import { useQuery } from "@tanstack/react-query";
 
 type TabKey = "feed" | "dress" | "decorate";
 
@@ -30,6 +34,11 @@ export default function PetDen() {
   const equipPetItem = useEquipPetItem();
   const togglePetDecor = useTogglePetDecor();
   const purchaseShopItem = usePurchaseShopItem();
+  const { data: prefs } = useQuery({
+    queryKey: ["preferences", getActiveProfileId()],
+    queryFn: () => fetchPreferences(getActiveProfileId()),
+  });
+  const soundOn = prefs?.soundEnabled ?? true;
 
   const [tab, setTab] = useState<TabKey>("feed");
   const [pulseHeart, setPulseHeart] = useState(false);
@@ -81,8 +90,14 @@ export default function PetDen() {
           updatePetState(newPet);
           showFloat("✨ new!");
           setBounceKey(k => k + 1);
+          // Spend chime — it's the inverse of "earn", but reuses the same
+          // celebratory two-tone so kids feel a small reward when they buy.
+          playGemEarn(soundOn);
           // auto equip if it's a hat or color
-          if (kind === "hat") equipPetItem.mutate({ data: { slot: "hat", itemId: item.id } }, { onSuccess: updatePetState });
+          if (kind === "hat") {
+            playHatEquip(soundOn);
+            equipPetItem.mutate({ data: { slot: "hat", itemId: item.id } }, { onSuccess: updatePetState });
+          }
           if (kind === "color") equipPetItem.mutate({ data: { slot: "glow", itemId: item.id } }, { onSuccess: updatePetState });
           if (kind === "decor") togglePetDecor.mutate({ data: { itemId: item.id, on: true } }, { onSuccess: updatePetState });
         }
@@ -91,6 +106,7 @@ export default function PetDen() {
     }
 
     if (kind === "hat") {
+      playHatEquip(soundOn);
       equipPetItem.mutate({ data: { slot: "hat", itemId: item.id } }, { onSuccess: updatePetState });
     }
     if (kind === "color") {
@@ -104,6 +120,7 @@ export default function PetDen() {
   };
 
   const unequipHat = () => {
+    playHatEquip(soundOn);
     equipPetItem.mutate({ data: { slot: "hat", itemId: null } }, { onSuccess: updatePetState });
   }
 

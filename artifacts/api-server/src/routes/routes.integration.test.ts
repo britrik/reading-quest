@@ -246,6 +246,16 @@ describe("profiles CRUD + grown-ups gate", () => {
     const renameAfter = await request("PATCH", `/api/profiles/${created.body.id}`, { name: "Sneaky" });
     expect(renameAfter.status).toBe(401);
 
+    // Bypass attempt: kid resends `onboardedAt` along with a name change after
+    // the profile is already onboarded. Server must still reject because the
+    // existing row already has onboardedAt set; the carve-out is for first-time
+    // onboarding only.
+    const sneaky = await request("PATCH", `/api/profiles/${created.body.id}`, {
+      name: "Sneakier",
+      onboardedAt: new Date().toISOString(),
+    });
+    expect(sneaky.status).toBe(401);
+
     // Delete requires the token.
     const unauthDel = await request("DELETE", `/api/profiles/${created.body.id}`);
     expect(unauthDel.status).toBe(401);
@@ -279,7 +289,9 @@ describe("preferences GET/PUT including grown-ups extras", () => {
       weeklyEmailOptIn: false,
       weeklyEmailAddress: "",
     }, { ...headers, ...GROWNUP });
-    const before = await request<PrefsRow>("GET", "/api/preferences", undefined, headers);
+    // Reads of grown-up-only fields require the grown-up token (privacy:
+    // we don't want a kid to see the parent's weekly-email address).
+    const before = await request<PrefsRow>("GET", "/api/preferences", undefined, { ...headers, ...GROWNUP });
     expect(before.status).toBe(200);
     expect(before.body.weeklyEmailOptIn).toBe(false);
     expect(before.body.weeklyEmailAddress).toBeNull();
@@ -314,9 +326,21 @@ describe("preferences grown-up auth split", () => {
     const id = list.body[0]!.id;
     const headers = { "x-profile-id": String(id) };
 
-    // Kid fields go through fine without a token.
+    // Kid fields (incl. voiceSpeed — a kid-comfort setting in Cozy Settings)
+    // go through fine without a token.
     const kidOk = await request("PUT", "/api/preferences", { fontSize: "large" }, headers);
     expect(kidOk.status).toBe(200);
+    const kidVoice = await request<PrefsRow>("PUT", "/api/preferences", { voiceSpeed: 1.1 }, headers);
+    expect(kidVoice.status).toBe(200);
+    expect(kidVoice.body.voiceSpeed).toBeCloseTo(1.1, 1);
+
+    // GET without the token must omit grown-up fields (privacy).
+    const kidRead = await request<Record<string, unknown>>("GET", "/api/preferences", undefined, headers);
+    expect(kidRead.status).toBe(200);
+    expect(kidRead.body.voiceSpeed).toBeCloseTo(1.1, 1);
+    expect(kidRead.body.weeklyEmailAddress).toBeUndefined();
+    expect(kidRead.body.weeklyEmailOptIn).toBeUndefined();
+    expect(kidRead.body.breakReminders).toBeUndefined();
 
     // Grown-up fields are 401 without the token.
     const blocked = await request("PUT", "/api/preferences", { breakReminders: false }, headers);

@@ -18,6 +18,7 @@ import Settings from "@/pages/Settings";
 import { getActiveProfileId, setActiveProfileId } from "@/lib/profile";
 import { listProfiles } from "@/lib/profilesApi";
 import { PageLoader } from "@/components/PageStates";
+import { AmbientSoundscape } from "@/components/AmbientSoundscape";
 
 const queryClient = new QueryClient();
 
@@ -114,6 +115,7 @@ function App() {
           <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
             <Router />
           </WouterRouter>
+          <AmbientSoundscape />
         </ErrorBoundary>
         <Toaster />
       </TooltipProvider>
