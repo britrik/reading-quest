@@ -1,0 +1,32 @@
+uploads = []
+outputs = []
+
+[[generated]]
+id = "sDx5N8AN0r73DEQeC_dFp"
+uri = "file://artifacts/mockup-sandbox/public/images/reading-quest/companion.png"
+type = "image"
+title = "friendly voxel companion creature"
+
+[[generated]]
+id = "FC8yaEgEYEnzWiXMU3B-1"
+uri = "file://artifacts/mockup-sandbox/public/images/reading-quest/world-forest.png"
+type = "image"
+title = "blocky forest world thumbnail"
+
+[[generated]]
+id = "BOBKp1TT5prQGRTysjdTM"
+uri = "file://artifacts/mockup-sandbox/public/images/reading-quest/world-sky.png"
+type = "image"
+title = "anime sky island thumbnail"
+
+[[generated]]
+id = "0awNe6KKonZydUrbnLHtV"
+uri = "file://artifacts/mockup-sandbox/public/images/reading-quest/world-cave.png"
+type = "image"
+title = "cozy crystal cave thumbnail"
+
+[[generated]]
+id = "N6WWFyaZr81JCJkilSE8-"
+uri = "file://artifacts/mockup-sandbox/public/images/reading-quest/scene-forest.png"
+type = "image"
+title = "warm forest scene background"

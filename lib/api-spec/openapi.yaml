@@ -1,0 +1,861 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: Reading Quest API
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: profile
+    description: Active child profile
+  - name: worlds
+    description: Worlds, stories, and chapters
+  - name: sessions
+    description: Reading sessions
+  - name: pet
+    description: Pet care, customization, and shop
+  - name: grownups
+    description: Grown-ups dashboard (passcode-gated)
+  - name: preferences
+    description: Per-profile reader preferences (kid-readable, grown-up-writable for parental fields)
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/HealthStatus" }
+  /me:
+    get:
+      operationId: getMe
+      tags: [profile]
+      summary: Get the active child profile with rollup counters
+      responses:
+        "200":
+          description: Profile
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Profile" }
+  /worlds:
+    get:
+      operationId: listWorlds
+      tags: [worlds]
+      summary: List all worlds the kid can pick
+      responses:
+        "200":
+          description: Worlds
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/World" }
+  /worlds/{worldId}/stories:
+    get:
+      operationId: listStoriesInWorld
+      tags: [worlds]
+      parameters:
+        - in: path
+          name: worldId
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Stories
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Story" }
+        "404":
+          description: World not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+  /stories/{storyId}:
+    get:
+      operationId: getStory
+      tags: [worlds]
+      parameters:
+        - in: path
+          name: storyId
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Story with chapter list
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StoryDetail" }
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+  /chapters/{chapterId}:
+    get:
+      operationId: getChapter
+      tags: [worlds]
+      parameters:
+        - in: path
+          name: chapterId
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Chapter content
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Chapter" }
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+  /sessions:
+    post:
+      operationId: startSession
+      tags: [sessions]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/StartSessionRequest" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Session" }
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+  /sessions/active:
+    get:
+      operationId: getActiveSession
+      tags: [sessions]
+      summary: Returns the active (non-finished) session if one exists
+      responses:
+        "200":
+          description: Active session or null
+          content:
+            application/json:
+              schema:
+                type: ["object", "null"]
+                properties:
+                  id: { type: integer }
+                  profileId: { type: integer }
+                  chapterId: { type: integer }
+                  storyId: { type: integer }
+                  startedAt: { type: string, format: date-time }
+                  activeMs: { type: integer }
+                  status: { type: string }
+                required: [id, profileId, chapterId, storyId, startedAt, activeMs, status]
+  /sessions/{sessionId}/heartbeat:
+    post:
+      operationId: heartbeatSession
+      tags: [sessions]
+      parameters:
+        - in: path
+          name: sessionId
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/HeartbeatRequest" }
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Session" }
+        "404":
+          description: Session not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+  /sessions/{sessionId}/pause:
+    post:
+      operationId: pauseSession
+      tags: [sessions]
+      summary: Rest at Campfire — pauses the session, progress persists
+      parameters:
+        - in: path
+          name: sessionId
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Paused
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Session" }
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+  /sessions/{sessionId}/finish:
+    post:
+      operationId: finishSession
+      tags: [sessions]
+      summary: Mark a chapter as finished and award rewards
+      parameters:
+        - in: path
+          name: sessionId
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Finished with rewards
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SessionRewards" }
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+  /sessions/{sessionId}/word-help:
+    post:
+      operationId: logWordHelp
+      tags: [sessions]
+      summary: Log that the kid asked for help on a word (no penalty)
+      parameters:
+        - in: path
+          name: sessionId
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/WordHelpRequest" }
+      responses:
+        "200":
+          description: Word help with syllables and friendly reaction
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WordHelp" }
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+        "404":
+          description: Word or session not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+  /pet:
+    get:
+      operationId: getPet
+      tags: [pet]
+      responses:
+        "200":
+          description: Pet state
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PetState" }
+  /pet/feed:
+    post:
+      operationId: feedPet
+      tags: [pet]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PetItemRequest" }
+      responses:
+        "200":
+          description: Updated pet state
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PetState" }
+        "400":
+          description: Bad request (e.g. not enough gems)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+  /pet/equip:
+    post:
+      operationId: equipPetItem
+      tags: [pet]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EquipRequest" }
+      responses:
+        "200":
+          description: Updated pet state
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PetState" }
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+  /pet/decor:
+    post:
+      operationId: togglePetDecor
+      tags: [pet]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DecorToggleRequest" }
+      responses:
+        "200":
+          description: Updated pet state
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PetState" }
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+  /shop:
+    get:
+      operationId: listShopItems
+      tags: [pet]
+      responses:
+        "200":
+          description: All shop items with owned/locked flags
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/ShopItem" }
+  /shop/purchase:
+    post:
+      operationId: purchaseShopItem
+      tags: [pet]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PurchaseRequest" }
+      responses:
+        "200":
+          description: Updated pet state after purchase
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PetState" }
+        "400":
+          description: Bad request (e.g. not enough gems, locked, already owned)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+  /grownups/auth:
+    post:
+      operationId: grownupsAuth
+      tags: [grownups]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/GrownupsAuthRequest" }
+      responses:
+        "200":
+          description: Authenticated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/GrownupsAuthResult" }
+        "401":
+          description: Wrong passcode
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+  /grownups/summary:
+    get:
+      operationId: grownupsSummary
+      tags: [grownups]
+      parameters:
+        - in: header
+          name: x-grownup-token
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Top-line totals for the past 30 days
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/GrownupsSummary" }
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+  /grownups/weekly-minutes:
+    get:
+      operationId: grownupsWeeklyMinutes
+      tags: [grownups]
+      parameters:
+        - in: header
+          name: x-grownup-token
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Reading minutes per day for the last 7 days
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/DailyMinutes" }
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+  /grownups/words:
+    get:
+      operationId: grownupsWords
+      tags: [grownups]
+      parameters:
+        - in: header
+          name: x-grownup-token
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Word help aggregation
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/WordHelpAggregate" }
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+  /grownups/finished-stories:
+    get:
+      operationId: grownupsFinishedStories
+      tags: [grownups]
+      parameters:
+        - in: header
+          name: x-grownup-token
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Finished stories with timestamps
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/FinishedStory" }
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+  /grownups/recent-activity:
+    get:
+      operationId: grownupsRecentActivity
+      tags: [grownups]
+      parameters:
+        - in: header
+          name: x-grownup-token
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Most recent 25 events
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/ActivityEvent" }
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+  /preferences:
+    get:
+      operationId: getPreferences
+      tags: [preferences]
+      summary: Read the active profile's preferences
+      description: Kid-readable. Personally-identifying grown-up fields (weeklyEmail*) are only included when the grown-ups token is presented.
+      parameters:
+        - in: header
+          name: x-profile-id
+          required: false
+          schema: { type: integer }
+        - in: header
+          name: x-grownup-token
+          required: false
+          schema: { type: string }
+      responses:
+        "200":
+          description: Preferences
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Preferences" }
+    put:
+      operationId: updatePreferences
+      tags: [preferences]
+      summary: Patch the active profile's preferences
+      description: Grown-up-only fields (sessionLengthSuggestionMin, breakReminders, weeklyEmail*, languageVariant) require the grown-ups token; kid-callable fields do not.
+      parameters:
+        - in: header
+          name: x-profile-id
+          required: false
+          schema: { type: integer }
+        - in: header
+          name: x-grownup-token
+          required: false
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PreferencesPatch" }
+      responses:
+        "200":
+          description: Updated preferences
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Preferences" }
+        "400":
+          description: Invalid body
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+        "401":
+          description: Grown-ups passcode required
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status: { type: string }
+      required: [status]
+    ApiError:
+      type: object
+      properties:
+        error: { type: string }
+      required: [error]
+    Profile:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        gems: { type: integer }
+        stars: { type: integer }
+        petLevel: { type: integer }
+        petXp: { type: integer }
+        petXpForNextLevel: { type: integer }
+        petXpProgressPercent: { type: integer }
+      required: [id, name, gems, stars, petLevel, petXp, petXpForNextLevel, petXpProgressPercent]
+    World:
+      type: object
+      properties:
+        id: { type: integer }
+        slug: { type: string }
+        name: { type: string }
+        blurb: { type: string }
+        difficulty: { type: integer, description: "1=gentle, 2=breezy, 3=brave" }
+        difficultyLabel: { type: string }
+        thumbnailUrl: { type: string }
+        accentColor: { type: string }
+        chipColor: { type: string }
+        chipTextColor: { type: string }
+      required: [id, slug, name, blurb, difficulty, difficultyLabel, thumbnailUrl, accentColor, chipColor, chipTextColor]
+    Story:
+      type: object
+      properties:
+        id: { type: integer }
+        worldId: { type: integer }
+        slug: { type: string }
+        title: { type: string }
+        summary: { type: string }
+        chapterCount: { type: integer }
+        finishedChapterCount: { type: integer }
+        gemUnlockCost: { type: integer }
+        unlocked: { type: boolean }
+      required: [id, worldId, slug, title, summary, chapterCount, finishedChapterCount, gemUnlockCost, unlocked]
+    StoryDetail:
+      type: object
+      properties:
+        id: { type: integer }
+        worldId: { type: integer }
+        title: { type: string }
+        summary: { type: string }
+        chapters:
+          type: array
+          items: { $ref: "#/components/schemas/ChapterSummary" }
+      required: [id, worldId, title, summary, chapters]
+    ChapterSummary:
+      type: object
+      properties:
+        id: { type: integer }
+        storyId: { type: integer }
+        sortIndex: { type: integer }
+        title: { type: string }
+        finished: { type: boolean }
+      required: [id, storyId, sortIndex, title, finished]
+    Chapter:
+      type: object
+      properties:
+        id: { type: integer }
+        storyId: { type: integer }
+        sortIndex: { type: integer }
+        title: { type: string }
+        sceneImageUrl: { type: string }
+        chapterCount: { type: integer }
+        nextChapterId:
+          type: ["integer", "null"]
+        paragraphs:
+          type: array
+          items: { type: string }
+        tappableWords:
+          type: array
+          items: { $ref: "#/components/schemas/TappableWord" }
+      required: [id, storyId, sortIndex, title, sceneImageUrl, chapterCount, paragraphs, tappableWords]
+    TappableWord:
+      type: object
+      properties:
+        key: { type: string }
+        word: { type: string }
+        syllables:
+          type: array
+          items: { type: string }
+        reaction: { type: string }
+      required: [key, word, syllables, reaction]
+    StartSessionRequest:
+      type: object
+      properties:
+        chapterId: { type: integer }
+      required: [chapterId]
+    Session:
+      type: object
+      properties:
+        id: { type: integer }
+        profileId: { type: integer }
+        chapterId: { type: integer }
+        storyId: { type: integer }
+        startedAt: { type: string, format: date-time }
+        activeMs: { type: integer }
+        status: { type: string, description: "active|paused|finished" }
+      required: [id, profileId, chapterId, storyId, startedAt, activeMs, status]
+    HeartbeatRequest:
+      type: object
+      properties:
+        activeMsDelta:
+          type: integer
+          description: Milliseconds of active reading since the last heartbeat (clamped server-side)
+      required: [activeMsDelta]
+    SessionRewards:
+      type: object
+      properties:
+        session: { $ref: "#/components/schemas/Session" }
+        gemsAwarded: { type: integer }
+        starsAwarded: { type: integer }
+        xpAwarded: { type: integer }
+        petLeveledUp: { type: boolean }
+        newPetLevel:
+          type: ["integer", "null"]
+        profile: { $ref: "#/components/schemas/Profile" }
+      required: [session, gemsAwarded, starsAwarded, xpAwarded, petLeveledUp, profile]
+    WordHelpRequest:
+      type: object
+      properties:
+        wordKey: { type: string }
+      required: [wordKey]
+    WordHelp:
+      type: object
+      properties:
+        word: { $ref: "#/components/schemas/TappableWord" }
+        helpCount: { type: integer, description: "Number of times this kid has asked for help on this word" }
+      required: [word, helpCount]
+    PetState:
+      type: object
+      properties:
+        profileId: { type: integer }
+        level: { type: integer }
+        xp: { type: integer }
+        xpForNextLevel: { type: integer }
+        xpProgressPercent: { type: integer }
+        fullness: { type: integer, description: "0-100" }
+        happiness: { type: integer, description: "0-100" }
+        mood: { type: string, description: "ecstatic|happy|okay|lonely" }
+        equippedHat:
+          type: ["string", "null"]
+        glowColor: { type: string }
+        decor:
+          type: array
+          items: { type: string }
+        gems: { type: integer }
+        stars: { type: integer }
+      required: [profileId, level, xp, xpForNextLevel, xpProgressPercent, fullness, happiness, mood, glowColor, decor, gems, stars]
+    PetItemRequest:
+      type: object
+      properties:
+        itemId: { type: string }
+      required: [itemId]
+    EquipRequest:
+      type: object
+      properties:
+        slot: { type: string, description: "hat|glow" }
+        itemId:
+          type: ["string", "null"]
+      required: [slot]
+    DecorToggleRequest:
+      type: object
+      properties:
+        itemId: { type: string }
+        on: { type: boolean }
+      required: [itemId, on]
+    ShopItem:
+      type: object
+      properties:
+        id: { type: string }
+        kind: { type: string, description: "snack|hat|glow|decor" }
+        name: { type: string }
+        description: { type: string }
+        gemPrice: { type: integer }
+        fullnessBoost: { type: integer }
+        happinessBoost: { type: integer }
+        requiresPetLevel: { type: integer }
+        owned: { type: boolean }
+        locked: { type: boolean }
+        lockHint:
+          type: ["string", "null"]
+        emoji: { type: string }
+        glowColor:
+          type: ["string", "null"]
+      required: [id, kind, name, description, gemPrice, fullnessBoost, happinessBoost, requiresPetLevel, owned, locked, emoji]
+    PurchaseRequest:
+      type: object
+      properties:
+        itemId: { type: string }
+      required: [itemId]
+    GrownupsAuthRequest:
+      type: object
+      properties:
+        passcode: { type: string }
+      required: [passcode]
+    GrownupsAuthResult:
+      type: object
+      properties:
+        token: { type: string }
+      required: [token]
+    GrownupsSummary:
+      type: object
+      properties:
+        minutesRead: { type: integer }
+        storiesFinished: { type: integer }
+        chaptersFinished: { type: integer }
+        wordsHelped: { type: integer }
+        sessionsCount: { type: integer }
+      required: [minutesRead, storiesFinished, chaptersFinished, wordsHelped, sessionsCount]
+    DailyMinutes:
+      type: object
+      properties:
+        date: { type: string, description: "YYYY-MM-DD" }
+        minutes: { type: integer }
+      required: [date, minutes]
+    WordHelpAggregate:
+      type: object
+      properties:
+        wordKey: { type: string }
+        word: { type: string }
+        helpCount: { type: integer }
+        lastSeenAt: { type: string, format: date-time }
+      required: [wordKey, word, helpCount, lastSeenAt]
+    FinishedStory:
+      type: object
+      properties:
+        storyId: { type: integer }
+        title: { type: string }
+        worldName: { type: string }
+        finishedAt: { type: string, format: date-time }
+      required: [storyId, title, worldName, finishedAt]
+    ActivityEvent:
+      type: object
+      properties:
+        id: { type: integer }
+        kind: { type: string, description: "session_started|chapter_finished|word_help|pet_fed|item_purchased|item_equipped" }
+        label: { type: string }
+        createdAt: { type: string, format: date-time }
+      required: [id, kind, label, createdAt]
+    Preferences:
+      type: object
+      description: Per-profile reader preferences. weeklyEmail* fields are only present in the response when the grown-ups token is presented.
+      properties:
+        fontSize:
+          type: string
+          enum: [small, medium, large]
+        highContrast: { type: boolean }
+        reducedMotion: { type: boolean }
+        voiceSpeed:
+          type: number
+          format: float
+          minimum: 0.5
+          maximum: 1.5
+        soundscape:
+          type: string
+          enum: [none, forest, rain, ocean]
+        soundEnabled: { type: boolean }
+        languageVariant:
+          type: string
+          enum: [en-GB, en-US]
+          description: British vs American English copy. Default en-GB. Grown-up-writable, kid-readable.
+        sessionLengthSuggestionMin: { type: integer }
+        breakReminders: { type: boolean }
+        weeklyEmailOptIn: { type: boolean }
+        weeklyEmailAddress:
+          type: ["string", "null"]
+      required: [fontSize, highContrast, reducedMotion, voiceSpeed, soundscape, soundEnabled, languageVariant]
+    PreferencesPatch:
+      type: object
+      description: Partial update. Grown-up-only fields require the x-grownup-token header.
+      properties:
+        fontSize:
+          type: string
+          enum: [small, medium, large]
+        highContrast: { type: boolean }
+        reducedMotion: { type: boolean }
+        voiceSpeed:
+          type: number
+          format: float
+          minimum: 0.5
+          maximum: 1.5
+        soundscape:
+          type: string
+          enum: [none, forest, rain, ocean]
+        soundEnabled: { type: boolean }
+        languageVariant:
+          type: string
+          enum: [en-GB, en-US]
+        sessionLengthSuggestionMin:
+          type: integer
+          minimum: 5
+          maximum: 60
+        breakReminders: { type: boolean }
+        weeklyEmailOptIn: { type: boolean }
+        weeklyEmailAddress:
+          type: string
+          description: Empty string clears the address.
