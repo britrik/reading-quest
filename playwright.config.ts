@@ -18,13 +18,13 @@ export default defineConfig({
   webServer: [
     {
       command:
-        "ENABLE_E2E_TEST_ROUTES=true E2E_TEST_SECRET=rq-dev-e2e-secret pnpm --filter @workspace/api-server run dev",
+        "PORT=5051 ENABLE_E2E_TEST_ROUTES=true E2E_TEST_SECRET=rq-dev-e2e-secret pnpm --filter @workspace/api-server run dev",
       url: "http://localhost:80/api/healthz",
       reuseExistingServer: true,
       timeout: 60_000,
     },
     {
-      command: "pnpm --filter @workspace/reading-quest run dev",
+      command: "PORT=5052 pnpm --filter @workspace/reading-quest run dev",
       url: WEB_URL,
       reuseExistingServer: true,
       timeout: 60_000,
