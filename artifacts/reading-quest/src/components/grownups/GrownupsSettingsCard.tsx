@@ -124,7 +124,7 @@ export default function GrownupsSettingsCard({ token }: { token: string }) {
 
         <label className="block">
           <span className="text-xs font-semibold text-slate-700 inline-flex items-center gap-1">
-            <Globe className="w-3.5 h-3.5" /> Language style
+            <Globe className="w-3.5 h-3.5" /> Language
           </span>
           <select
             value={prefs.languageVariant}
@@ -138,6 +138,9 @@ export default function GrownupsSettingsCard({ token }: { token: string }) {
               </option>
             ))}
           </select>
+          <span className="block mt-1 text-[11px] text-slate-500">
+            Switches the wording and spelling shown to the active reader (e.g. "Cosy" vs "Cozy").
+          </span>
         </label>
 
         <label className="flex items-center justify-between">
