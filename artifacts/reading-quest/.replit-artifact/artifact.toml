@@ -17,15 +17,6 @@ localPort = 23752
 [services.development]
 run = "pnpm --filter @workspace/reading-quest run dev"
 
-[services.production]
-build = [ "pnpm", "--filter", "@workspace/reading-quest", "run", "build" ]
-publicDir = "artifacts/reading-quest/dist/public"
-serve = "static"
-
-[[services.production.rewrites]]
-from = "/*"
-to = "/index.html"
-
 [services.env]
 PORT = "23752"
 BASE_PATH = "/"
