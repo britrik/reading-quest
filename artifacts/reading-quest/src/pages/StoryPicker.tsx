@@ -8,12 +8,14 @@ import { getImageUrl } from "@/lib/utils";
 import { getActiveProfileId } from "@/lib/profile";
 import { fetchPreferences } from "@/lib/preferences";
 import { playUnlock } from "@/lib/sound";
+import { useCopy } from "@/lib/copy";
 import { toast } from "sonner";
 
 interface UnlockResponse { ok: boolean; alreadyUnlocked: boolean; gemsRemaining: number }
 interface UnlockError { error: string; gemsRemaining?: number; gemUnlockCost?: number }
 
 export default function StoryPicker() {
+  const copy = useCopy();
   const params = useParams();
   const worldId = Number(params.worldId);
   const [, setLocation] = useLocation();
@@ -67,7 +69,7 @@ export default function StoryPicker() {
       <header className="p-6 relative z-10">
         <Link href="/" className="inline-flex items-center gap-2 bg-white/80 backdrop-blur-sm px-4 py-2 rounded-full voxel-shadow hover:-translate-y-1 transition-transform">
           <Map className="w-5 h-5 text-[#2D3142]" />
-          <span className="font-fredoka font-semibold">Back to worlds</span>
+          <span className="font-fredoka font-semibold">{copy.t("storyPickerBackToWorlds")}</span>
         </Link>
       </header>
 
@@ -83,12 +85,12 @@ export default function StoryPicker() {
         <div className="w-full max-w-2xl flex flex-col gap-4">
           <h2 className="font-fredoka text-2xl font-bold text-[#FF9B54] ml-4 flex items-center gap-2">
             <BookOpen className="w-6 h-6" />
-            Stories to read
+            {copy.t("storyPickerHeading")}
           </h2>
 
           {stories.length === 0 ? (
             <div className="bg-white/80 rounded-3xl p-8 text-center voxel-shadow">
-              <p className="text-xl text-gray-600">No stories here yet. Let's check another world!</p>
+              <p className="text-xl text-gray-600">{copy.t("storyPickerEmpty")}</p>
             </div>
           ) : (
             stories.map((story) => {

@@ -2,8 +2,10 @@ import { Link, useParams } from "wouter";
 import { BookOpen, ChevronRight, Check } from "lucide-react";
 import { useGetStory } from "@workspace/api-client-react";
 import { PageLoader, PageError } from "@/components/PageStates";
+import { useCopy } from "@/lib/copy";
 
 export default function ChapterPicker() {
+  const copy = useCopy();
   const params = useParams();
   const storyId = Number(params.storyId);
   
@@ -19,7 +21,7 @@ export default function ChapterPicker() {
       <header className="p-6 relative z-10">
         <Link href={`/world/${story.worldId}`} className="inline-flex items-center gap-2 bg-white/80 backdrop-blur-sm px-4 py-2 rounded-full voxel-shadow hover:-translate-y-1 transition-transform">
           <BookOpen className="w-5 h-5 text-[#2D3142]" />
-          <span className="font-fredoka font-semibold">Back to stories</span>
+          <span className="font-fredoka font-semibold">{copy.t("chapterPickerBackToStories")}</span>
         </Link>
       </header>
 
@@ -31,12 +33,12 @@ export default function ChapterPicker() {
 
         <div className="w-full max-w-2xl flex flex-col gap-4">
           <h2 className="font-fredoka text-2xl font-bold text-[#FF9B54] ml-4">
-            Chapters
+            {copy.t("chapterPickerHeading")}
           </h2>
 
           <div className="bg-white rounded-3xl p-4 voxel-shadow flex flex-col gap-2">
             {story.chapters.length === 0 ? (
-              <p className="text-center py-8 text-gray-500">No chapters written yet.</p>
+              <p className="text-center py-8 text-gray-500">{copy.t("chapterPickerEmpty")}</p>
             ) : (
               story.chapters.map((chapter, index) => (
                 <Link 
@@ -57,7 +59,7 @@ export default function ChapterPicker() {
                   <div className="shrink-0 flex items-center">
                     {chapter.finished ? (
                       <div className="flex items-center gap-2 bg-[#A5FFD6]/30 px-3 py-1 rounded-full text-teal-700 font-bold font-fredoka text-sm">
-                        <Check className="w-4 h-4" /> Finished
+                        <Check className="w-4 h-4" /> {copy.t("chapterPickerFinished")}
                       </div>
                     ) : (
                       <div className="w-10 h-10 rounded-full bg-white voxel-shadow flex items-center justify-center text-[#FF9B54]">

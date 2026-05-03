@@ -14,6 +14,7 @@ import {
   useGrownupsRecentActivity
 } from "@workspace/api-client-react";
 import { PageLoader, PageError } from "@/components/PageStates";
+import { useCopy } from "@/lib/copy";
 
 function statusColor(helpCount: number): string {
   if (helpCount <= 1) return "bg-emerald-50 text-emerald-700 border-emerald-200";
@@ -28,6 +29,7 @@ function statusText(helpCount: number): string {
 }
 
 export default function Grownups() {
+  const copy = useCopy();
   const [token, setToken] = useState<string | null>(localStorage.getItem('rq.grownupToken'));
   const [passcode, setPasscode] = useState("");
   const authMutation = useGrownupsAuth();
@@ -77,7 +79,7 @@ export default function Grownups() {
             >
               {authMutation.isPending ? "Unlocking..." : "Enter"}
             </button>
-            <Link href="/" className="text-center text-sm text-slate-500 mt-2 hover:text-slate-900">Back to app</Link>
+            <Link href="/" className="text-center text-sm text-slate-500 mt-2 hover:text-slate-900">{copy.t("grownupsBackToApp")}</Link>
           </form>
         </div>
       </div>

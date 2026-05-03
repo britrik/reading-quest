@@ -9,8 +9,10 @@ import {
 } from "@/lib/profilesApi";
 import { setActiveProfileId } from "@/lib/profile";
 import { applyPreferencesToDocument, fetchPreferences } from "@/lib/preferences";
+import { useCopy } from "@/lib/copy";
 
 export default function ProfilePicker() {
+  const copy = useCopy();
   const [, setLocation] = useLocation();
   const [profiles, setProfiles] = useState<ProfileListItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -39,8 +41,8 @@ export default function ProfilePicker() {
     >
       <div className="text-center mb-8">
         <Sparkles className="w-12 h-12 text-[#FF9B54] mx-auto mb-3" aria-hidden="true" />
-        <h1 className="font-fredoka text-4xl font-bold text-[#2D3142] mb-2">Tap your picture</h1>
-        <p className="text-lg text-gray-700">No reading needed — just pick your animal!</p>
+        <h1 className="font-fredoka text-4xl font-bold text-[#2D3142] mb-2">{copy.t("profilePickerTitle")}</h1>
+        <p className="text-lg text-gray-700">{copy.t("profilePickerSubtitle")}</p>
       </div>
 
       {error && (
@@ -75,7 +77,7 @@ export default function ProfilePicker() {
         className="mt-8 inline-flex items-center gap-2 text-sm text-gray-700 bg-white/70 px-4 py-2 rounded-full"
       >
         <Lock className="w-4 h-4" aria-hidden="true" />
-        Grown-ups: add a new reader
+        {copy.t("profilePickerGrownupsCta")}
       </Link>
     </div>
   );

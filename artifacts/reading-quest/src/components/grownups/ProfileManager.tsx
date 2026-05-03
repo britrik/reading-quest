@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { UserPlus, Trash2, Pencil, Check, X } from "lucide-react";
+import { useCopy } from "@/lib/copy";
 import {
   AVATARS,
   AVATAR_EMOJI,
@@ -12,6 +13,7 @@ import {
 } from "@/lib/profilesApi";
 
 export default function ProfileManager({ token }: { token: string }) {
+  const copy = useCopy();
   const [profiles, setProfiles] = useState<ProfileListItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showAdd, setShowAdd] = useState(false);
@@ -75,8 +77,8 @@ export default function ProfileManager({ token }: { token: string }) {
     <div className="bg-white rounded-lg border border-slate-200 p-6" data-testid="profile-manager">
       <div className="flex items-start justify-between mb-4">
         <div>
-          <h2 className="text-sm font-semibold text-slate-900 mb-0.5">Readers</h2>
-          <p className="text-xs text-slate-500">Add, rename, or remove a kid profile on this device.</p>
+          <h2 className="text-sm font-semibold text-slate-900 mb-0.5">{copy.t("profileManagerHeading")}</h2>
+          <p className="text-xs text-slate-500">{copy.t("profileManagerSubtitle")}</p>
         </div>
         <button
           type="button"
@@ -84,7 +86,7 @@ export default function ProfileManager({ token }: { token: string }) {
           data-testid="open-add-profile"
           className="text-xs font-semibold text-slate-700 px-3 py-1.5 rounded-md border border-slate-200 inline-flex items-center gap-1"
         >
-          <UserPlus className="w-3.5 h-3.5" /> Add reader
+          <UserPlus className="w-3.5 h-3.5" /> {copy.t("profileManagerAddReader")}
         </button>
       </div>
 
@@ -129,7 +131,7 @@ export default function ProfileManager({ token }: { token: string }) {
             data-testid="manager-add-submit"
             className="bg-slate-900 text-white text-sm px-4 py-2 rounded-md disabled:opacity-50"
           >
-            Add reader
+            {copy.t("profileManagerAddReader")}
           </button>
         </form>
       )}
