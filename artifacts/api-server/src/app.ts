@@ -58,4 +58,18 @@ if (process.env["NODE_ENV"] === "production") {
   });
 }
 
+// Global error-handling middleware (must be last).
+// Express 5 natively catches rejected promises from async route handlers.
+app.use(
+  (
+    err: Error,
+    req: express.Request,
+    res: express.Response,
+    _next: express.NextFunction,
+  ) => {
+    logger.error({ err, path: req.path, method: req.method }, "Unhandled error");
+    res.status(500).json({ error: "Internal server error" });
+  },
+);
+
 export default app;
