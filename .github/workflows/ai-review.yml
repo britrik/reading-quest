@@ -25,10 +25,32 @@ jobs:
           # ------------------------------------------------------------------
           # 1. Gather diff (only relevant file types, exclude noise)
           # ------------------------------------------------------------------
-          DIFF=$(gh pr diff "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" -- \
-            -- '*.ts' '*.tsx' '*.js' '*.css' '*.json' '*.yml' '*.yaml' '*.md' \
-            2>/dev/null | \
-            grep -v -E '^(---|\+\+\+) (a/|b/)?(package-lock\.json|pnpm-lock\.yaml|dist/|.*\.min\.js|lib/api-zod/src/generated/)')
+          DIFF_RAW=$(gh pr diff "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" -- \
+            '*.ts' '*.tsx' '*.js' '*.css' '*.json' '*.yml' '*.yaml' '*.md' \
+            2>/tmp/gh_pr_diff.err)
+          GH_DIFF_STATUS=$?
+          if [ "$GH_DIFF_STATUS" -ne 0 ]; then
+            echo "::warning::Failed to fetch PR diff; skipping AI review."
+            head -20 /tmp/gh_pr_diff.err
+            exit 0
+          fi
+
+          # Filter out noise files at the block level (entire hunks, not just headers)
+          DIFF=$(printf '%s\n' "$DIFF_RAW" | awk '
+            /^diff --git/ {
+              file = $0
+              sub(/^diff --git a\//, "", file)
+              sub(/ .*/, "", file)
+              skip = (
+                file == "package-lock.json" ||
+                file == "pnpm-lock.yaml" ||
+                file ~ /(^|\/)dist\// ||
+                file ~ /\.min\.js$/ ||
+                file ~ /^lib\/api-zod\/src\/generated\//
+              )
+            }
+            !skip { print }
+          ')
 
           if [ -z "$DIFF" ]; then
             echo "No relevant files changed — skipping AI review."
@@ -44,33 +66,39 @@ jobs:
           # ------------------------------------------------------------------
           # 3. Call GLM-5.1 with retries + exponential back-off
           # ------------------------------------------------------------------
-          SYSTEM_PROMPT='You are an expert code reviewer for a children'\''s reading application. \
-Review the following diff for: security (especially child data protection and COPPA compliance), \
-correctness, error handling, race conditions, test coverage, and performance. \
-Use British English. Focus on substantive issues — not style or formatting.'
+          SYSTEM_PROMPT=$(cat <<'SYSEOF'
+          You are an expert code reviewer for a children's reading application.
+          Review the following diff for: security (especially child data protection and COPPA compliance),
+          correctness, error handling, race conditions, test coverage, and performance.
+          Use British English. Focus on substantive issues — not style or formatting.
+          SYSEOF
+          )
 
-          USER_PROMPT="Please review the following pull-request diff and provide a structured review.
+          USER_PROMPT=$(cat <<USREOF
+          Please review the following pull-request diff and provide a structured review.
 
-## Diff
+          ## Diff
 
-\`\`\`diff
-${DIFF}
-\`\`\`
+          \`\`\`diff
+          ${DIFF}
+          \`\`\`
 
-## Required output format
+          ## Required output format
 
-### Summary
-One-paragraph overview of what the PR does and overall impression.
+          ### Summary
+          One-paragraph overview of what the PR does and overall impression.
 
-### Findings
-For each issue found, include:
-- **File & location**
-- **Severity**: critical / high / medium / low
-- **Description**
-- **Suggested fix**
+          ### Findings
+          For each issue found, include:
+          - **File & location**
+          - **Severity**: critical / high / medium / low
+          - **Description**
+          - **Suggested fix**
 
-### Verdict
-State one of: **approve** or **request changes**, with a brief justification."
+          ### Verdict
+          State one of: **approve** or **request changes**, with a brief justification.
+          USREOF
+          )
 
           PAYLOAD=$(jq -n \
             --arg sys "$SYSTEM_PROMPT" \
@@ -122,17 +150,22 @@ State one of: **approve** or **request changes**, with a brief justification."
           # ------------------------------------------------------------------
           # 4. Post review as a PR comment
           # ------------------------------------------------------------------
-          # Escape for heredoc / gh
-          COMMENT_BODY=$(echo "$RESPONSE" | sed 's/`/\\`/g')
+          # Write comment to a temp file to avoid quoting/indentation issues
+          COMMENT_FILE=$(mktemp)
+          cat > "$COMMENT_FILE" <<COMMENT_EOF
+          ## 🤖 AI Code Review (GLM-5.1)
+
+          ${RESPONSE}
+
+          ---
+          *This review was generated automatically by the AI review bot. Please use your judgement when acting on its suggestions.*
+          COMMENT_EOF
 
           gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" \
-            --body "## 🤖 AI Code Review (GLM-5.1)
-
-${COMMENT_BODY}
-
----
-*This review was generated automatically by the AI review bot. Please use your judgement when acting on its suggestions.*" \
+            --body-file "$COMMENT_FILE" \
             && echo "Review comment posted." \
             || echo "::warning::Failed to post review comment — continuing."
+
+          rm -f "$COMMENT_FILE"
 
           exit 0
