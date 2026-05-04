@@ -1,6 +1,19 @@
 import type { Request, Response } from "express";
+import { timingSafeEqual } from "node:crypto";
 
 const IS_PROD = process.env.NODE_ENV === "production";
+
+export function safeCompare(a: string, b: string): boolean {
+  const bufA = Buffer.from(a, "utf-8");
+  const bufB = Buffer.from(b, "utf-8");
+  if (bufA.length !== bufB.length) {
+    // Still do a comparison to avoid leaking length info via timing,
+    // but always return false since the values differ.
+    timingSafeEqual(bufA, bufA);
+    return false;
+  }
+  return timingSafeEqual(bufA, bufB);
+}
 
 /**
  * Grown-ups gate. In production we require an exact-token match against the
@@ -15,7 +28,7 @@ export function isGrownupAuthorized(req: Request): boolean {
   if (IS_PROD) {
     const secret = process.env.GROWNUPS_TOKEN_SECRET;
     if (!secret) return false;
-    return provided === `grownup:${secret}`;
+    return safeCompare(provided, `grownup:${secret}`);
   }
   return provided.startsWith("grownup:");
 }

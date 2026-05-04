@@ -3,6 +3,7 @@ import { db, childProfilesTable, preferencesTable, sessionsTable, wordHelpEvents
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { isGrownupAuthorized, requireGrownup } from "../lib/grownup-auth";
+import { createSessionCookie, clearSessionCookie } from "../lib/kid-session";
 
 const router: IRouter = Router();
 
@@ -146,6 +147,34 @@ router.delete("/profiles/:id", async (req, res) => {
   await db.delete(preferencesTable).where(eq(preferencesTable.profileId, id));
   await db.delete(childProfilesTable).where(eq(childProfilesTable.id, id));
   res.json({ ok: true });
+});
+
+// --- Profile selection (kid session cookie) ---
+
+// POST /profiles/deselect — Clear session cookie (return to profile selection)
+router.post("/profiles/deselect", async (_req, res) => {
+  clearSessionCookie(res);
+  res.json({ success: true });
+});
+
+// POST /profiles/:id/select — Select a profile (issues signed session cookie)
+router.post("/profiles/:id/select", async (req, res) => {
+  const id = Number.parseInt(req.params.id ?? "", 10);
+  if (!Number.isFinite(id) || id <= 0) {
+    res.status(400).json({ error: "Invalid profile ID" });
+    return;
+  }
+  const rows = await db
+    .select()
+    .from(childProfilesTable)
+    .where(eq(childProfilesTable.id, id))
+    .limit(1);
+  if (rows.length === 0) {
+    res.status(404).json({ error: "Profile not found" });
+    return;
+  }
+  createSessionCookie(res, id);
+  res.json({ success: true, profileId: id });
 });
 
 export default router;

@@ -11,6 +11,17 @@ import {
 import { and, desc, eq, gte, sql, inArray, countDistinct } from "drizzle-orm";
 import { GrownupsAuthBody } from "@workspace/api-zod";
 import { resolveProfile } from "../lib/profile";
+import { safeCompare } from "../lib/grownup-auth";
+import rateLimit from "express-rate-limit";
+
+const IS_E2E = process.env.ENABLE_E2E_TEST_ROUTES === "true";
+const authLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: IS_E2E ? 100 : 5,
+  message: { error: "Too many attempts, please try again later" },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 const router: IRouter = Router();
 
@@ -28,16 +39,16 @@ const TOKEN = `grownup:${TOKEN_SECRET}`;
 
 function requireGrownupAuth(req: { headers: Record<string, string | string[] | undefined> }): boolean {
   const provided = req.headers["x-grownup-token"];
-  return typeof provided === "string" && provided === TOKEN;
+  return typeof provided === "string" && safeCompare(provided, TOKEN);
 }
 
-router.post("/grownups/auth", (req, res) => {
+router.post("/grownups/auth", authLimiter, (req, res) => {
   const parsed = GrownupsAuthBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(401).json({ error: "Wrong passcode" });
     return;
   }
-  if (parsed.data.passcode !== PASSCODE) {
+  if (!safeCompare(parsed.data.passcode, PASSCODE)) {
     res.status(401).json({ error: "Wrong passcode" });
     return;
   }

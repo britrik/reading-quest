@@ -1,6 +1,10 @@
 import { db, childProfilesTable, preferencesTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import type { Request } from "express";
+import { getAuthenticatedProfileId } from "./kid-session";
+import { isGrownupAuthorized } from "./grownup-auth";
+
+const IS_PROD = process.env.NODE_ENV === "production";
 
 export const DEFAULT_PROFILE_NAME = "Alex";
 
@@ -49,25 +53,71 @@ export async function getOrCreateActiveProfile() {
 
 /**
  * Resolve the profile for the current request.
- * Uses the `x-profile-id` header if present and the id corresponds to a real profile;
- * otherwise falls back to the first profile (creating one if none exist).
+ *
+ * Priority:
+ *  1. Grown-up auth allows specifying any profile via `x-profile-id` header
+ *     (grown-ups need cross-profile access for the dashboard).
+ *  2. Signed session cookie — the profile ID is extracted from the cookie and
+ *     the header is ignored, preventing impersonation.
+ *  3. In non-production: `x-profile-id` header is accepted directly so that
+ *    integration tests and local development can select profiles without
+ *    going through the auth flow. In production this would be insecure.
+ *  4. No auth yet (onboarding flow) — create/get the first profile.
  */
 export async function resolveProfile(req: Request) {
-  const headerVal = req.header("x-profile-id");
-  if (headerVal) {
-    const id = Number.parseInt(headerVal, 10);
-    if (Number.isFinite(id) && id > 0) {
-      const rows = await db
-        .select()
-        .from(childProfilesTable)
-        .where(eq(childProfilesTable.id, id))
-        .limit(1);
-      if (rows.length > 0) {
-        await ensurePreferences(id);
-        return rows[0]!;
+  // Priority 1: Grown-up auth allows specifying any profile via header
+  if (isGrownupAuthorized(req)) {
+    const headerVal = req.header("x-profile-id");
+    if (headerVal) {
+      const id = Number.parseInt(headerVal, 10);
+      if (Number.isFinite(id) && id > 0) {
+        const rows = await db
+          .select()
+          .from(childProfilesTable)
+          .where(eq(childProfilesTable.id, id))
+          .limit(1);
+        if (rows.length > 0) {
+          await ensurePreferences(id);
+          return rows[0]!;
+        }
       }
     }
   }
+
+  // Priority 2: Signed session cookie
+  const sessionProfileId = getAuthenticatedProfileId(req);
+  if (sessionProfileId !== null) {
+    const rows = await db
+      .select()
+      .from(childProfilesTable)
+      .where(eq(childProfilesTable.id, sessionProfileId))
+      .limit(1);
+    if (rows.length > 0) {
+      await ensurePreferences(sessionProfileId);
+      return rows[0]!;
+    }
+  }
+
+  // Priority 3: Non-production — accept x-profile-id header directly
+  if (!IS_PROD) {
+    const headerVal = req.header("x-profile-id");
+    if (headerVal) {
+      const id = Number.parseInt(headerVal, 10);
+      if (Number.isFinite(id) && id > 0) {
+        const rows = await db
+          .select()
+          .from(childProfilesTable)
+          .where(eq(childProfilesTable.id, id))
+          .limit(1);
+        if (rows.length > 0) {
+          await ensurePreferences(id);
+          return rows[0]!;
+        }
+      }
+    }
+  }
+
+  // Priority 4: No auth yet (onboarding) — create/get active profile
   return getOrCreateActiveProfile();
 }
 

@@ -40,3 +40,12 @@ Pet level threshold: `xpForNextLevel(level) = level * 50`. Heartbeat clamps delt
 Single active profile (auto-created "Alex"). API server seeds 3 worlds × 2 stories on first boot (idempotent).
 
 See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details.
+
+## Security & Auth
+
+- **Grownup auth**: POST `/api/grownups/auth` with `{"passcode":"..."}` returns a bearer token. Rate-limited to 5 req/min in prod (100 in E2E mode via `ENABLE_E2E_TEST_ROUTES=true`). All comparisons use `timingSafeEqual` (`safeCompare`).
+- **Kid session cookies**: Profile selection issues an HMAC-SHA256 signed `rq_session` cookie (httpOnly, sameSite=lax, path=/api). POST `/api/profiles/:id/select` sets it; POST `/api/profiles/deselect` clears it.
+- **`resolveProfile` priority**: (1) grownup token + `x-profile-id` header, (2) signed session cookie, (3) dev-only `x-profile-id` header, (4) create/get first profile.
+- **CORS**: Configured via `ALLOWED_ORIGINS` env var (comma-separated). Defaults to `http://localhost:3000` in dev.
+- **New required env vars in production**: `SESSION_SECRET` (cookie signing key), `ALLOWED_ORIGINS` (CORS origins), `GROWNUPS_PASSCODE`, `GROWNUPS_TOKEN_SECRET`. See `.env.example`.
+- **Vite proxy**: Set `API_SERVER_URL` env var to proxy `/api` requests through Vite dev server (used in E2E/CI).
