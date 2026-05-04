@@ -19,7 +19,7 @@ run = "pnpm --filter @workspace/reading-quest run dev"
 
 [services.production]
 serve = "static"
-publicDir = "dist/public"
+publicDir = "artifacts/reading-quest/dist/public"
 
 [services.production.build]
 args = ["sh", "-c", "pnpm --filter @workspace/reading-quest run build"]
