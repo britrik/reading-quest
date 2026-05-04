@@ -15,22 +15,9 @@ import {
 } from "@workspace/db";
 import { and, eq, gte, sql, desc } from "drizzle-orm";
 import { resolveProfile } from "../lib/profile";
+import { requireGrownup } from "../lib/grownup-auth";
 
 const router: IRouter = Router();
-
-const IS_PROD = process.env.NODE_ENV === "production";
-const PASSCODE_SECRET = process.env.GROWNUPS_TOKEN_SECRET || "";
-const PASSCODE = process.env.GROWNUPS_PASSCODE || "1234";
-const TOKEN = `grownup:${PASSCODE_SECRET || PASSCODE}`;
-
-function gate(req: import("express").Request, res: import("express").Response): boolean {
-  const provided = req.header("x-grownup-token");
-  if (!provided || (IS_PROD ? provided !== TOKEN : !provided.startsWith("grownup:"))) {
-    res.status(401).json({ error: "Unauthorized" });
-    return false;
-  }
-  return true;
-}
 
 /**
  * Per-word vocabulary tracker. For each unique word the kid asked help with,
@@ -42,7 +29,7 @@ function gate(req: import("express").Request, res: import("express").Response): 
  * help request for the word since.
  */
 router.get("/grownups/vocabulary", async (req, res) => {
-  if (!gate(req, res)) return;
+  if (!requireGrownup(req, res)) return;
   const profile = await resolveProfile(req);
 
   const wordRows = await db
@@ -92,7 +79,7 @@ router.get("/grownups/vocabulary", async (req, res) => {
  * Streak-free, judgment-free.
  */
 router.get("/grownups/weekly-summary", async (req, res) => {
-  if (!gate(req, res)) return;
+  if (!requireGrownup(req, res)) return;
   const profile = await resolveProfile(req);
   const weekAgo = new Date();
   weekAgo.setDate(weekAgo.getDate() - 7);
@@ -152,7 +139,7 @@ router.get("/grownups/weekly-summary", async (req, res) => {
  * Privacy-friendly data export: returns everything stored for this profile.
  */
 router.get("/grownups/export", async (req, res) => {
-  if (!gate(req, res)) return;
+  if (!requireGrownup(req, res)) return;
   const profile = await resolveProfile(req);
 
   const [prefs, sessions, words, finished, owned, decor, txns, allChapters, allStories, allWorlds] = await Promise.all([
