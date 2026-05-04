@@ -11,18 +11,8 @@ import {
 import { and, desc, eq, gte, sql, inArray, countDistinct } from "drizzle-orm";
 import { GrownupsAuthBody } from "@workspace/api-zod";
 import { resolveProfile } from "../lib/profile";
+import { safeCompare } from "../lib/grownup-auth";
 import rateLimit from "express-rate-limit";
-import { timingSafeEqual } from "node:crypto";
-
-function safeCompare(a: string, b: string): boolean {
-  const bufA = Buffer.from(a, "utf-8");
-  const bufB = Buffer.from(b, "utf-8");
-  if (bufA.length !== bufB.length) {
-    // Still do a comparison to avoid leaking length info via timing
-    return timingSafeEqual(bufA, bufA);
-  }
-  return timingSafeEqual(bufA, bufB);
-}
 
 const authLimiter = rateLimit({
   windowMs: 60 * 1000,
