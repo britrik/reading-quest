@@ -17,11 +17,16 @@ const IS_PROD = process.env.NODE_ENV === "production";
  * in dev we fall back to a fixed string so the onboarding flow still works.
  */
 function getSecret(): string {
-  return (
+  const secret =
     process.env.SESSION_SECRET ??
     process.env.GROWNUPS_TOKEN_SECRET ??
-    (IS_PROD ? undefined : "dev-only-session-secret-change-me")!
-  );
+    (IS_PROD ? undefined : "dev-only-session-secret-change-me");
+  if (!secret) {
+    throw new Error(
+      "SESSION_SECRET or GROWNUPS_TOKEN_SECRET must be set in production",
+    );
+  }
+  return secret;
 }
 
 /** Sign an arbitrary payload string with HMAC-SHA256. */
