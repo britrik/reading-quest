@@ -39,6 +39,9 @@ app.use(express.urlencoded({ extended: true }));
 app.use("/api", router);
 
 if (process.env["NODE_ENV"] === "production") {
+  // In the preferred production setup reading-quest is served as a static
+  // artifact by the Replit router. This block is a fallback for single-process
+  // deployments where the API server also needs to serve the frontend.
   const candidates = [
     path.resolve(__dirname, "../../reading-quest/dist/public"),
     path.resolve(process.cwd(), "artifacts/reading-quest/dist/public"),
@@ -46,18 +49,18 @@ if (process.env["NODE_ENV"] === "production") {
   const staticDir = candidates.find((p) => fs.existsSync(p));
 
   if (!staticDir) {
-    throw new Error(
-      `Reading Quest static assets not found. Looked in: ${candidates.join(", ")}`,
+    logger.warn(
+      { candidates },
+      "Reading Quest static assets not found — frontend will be served by the static artifact router",
     );
+  } else {
+    const indexHtml = path.join(staticDir, "index.html");
+    logger.info({ staticDir }, "Serving Reading Quest static frontend");
+    app.use(express.static(staticDir));
+    app.get(/^\/(?!api(\/|$)).*/, (_req, res) => {
+      res.sendFile(indexHtml);
+    });
   }
-
-  const indexHtml = path.join(staticDir, "index.html");
-  logger.info({ staticDir }, "Serving Reading Quest static frontend");
-
-  app.use(express.static(staticDir));
-  app.get(/^\/(?!api(\/|$)).*/, (_req, res) => {
-    res.sendFile(indexHtml);
-  });
 }
 
 // Global error-handling middleware (must be last).

@@ -17,6 +17,16 @@ localPort = 23752
 [services.development]
 run = "pnpm --filter @workspace/reading-quest run dev"
 
+[services.production]
+serve = "static"
+publicDir = "dist/public"
+
+[services.production.build]
+args = ["sh", "-c", "pnpm --filter @workspace/reading-quest run build"]
+
+[services.production.build.env]
+NODE_ENV = "production"
+
 [services.env]
 PORT = "23752"
 BASE_PATH = "/"
