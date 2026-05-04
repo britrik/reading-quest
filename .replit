@@ -43,3 +43,8 @@ externalPort = 3000
 [[ports]]
 localPort = 23752
 externalPort = 3001
+
+[userenv]
+
+[userenv.production]
+ALLOWED_ORIGINS = "https://gamer-reader-adventures.replit.app"
