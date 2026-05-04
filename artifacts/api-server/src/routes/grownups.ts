@@ -14,9 +14,10 @@ import { resolveProfile } from "../lib/profile";
 import { safeCompare } from "../lib/grownup-auth";
 import rateLimit from "express-rate-limit";
 
+const IS_E2E = process.env.ENABLE_E2E_TEST_ROUTES === "true";
 const authLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 5,
+  max: IS_E2E ? 100 : 5,
   message: { error: "Too many attempts, please try again later" },
   standardHeaders: true,
   legacyHeaders: false,
