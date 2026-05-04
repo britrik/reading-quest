@@ -37,7 +37,7 @@ export async function resetTestProfile(opts: { onboarded?: boolean } = { onboard
     throw new Error(`Failed to reset test profile: ${res.status()} ${await res.text()}`);
   }
   if (opts.onboarded) {
-    // Mark the canonical Alex profile (lowest id) as onboarded so existing
+    // Mark the canonical Sylvester profile (lowest id) as onboarded so existing
     // tests can navigate to Home without first walking the onboarding flow.
     const list = await ctx.get(`${API_BASE}/api/profiles`);
     const profiles: Array<{ id: number }> = list.ok() ? await list.json() : [];

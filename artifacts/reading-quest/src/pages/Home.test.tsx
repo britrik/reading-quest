@@ -12,7 +12,7 @@ import { useGetMe, useListWorlds, useGetActiveSession } from "@workspace/api-cli
 import Home from "./Home";
 
 const meFixture = {
-  id: 1, name: "Alex", gems: 24, stars: 12,
+  id: 1, name: "Sylvester", gems: 24, stars: 12,
   petLevel: 3, petXp: 100, petXpForNextLevel: 150, petXpProgressPercent: 66,
   fullness: 70, happiness: 75,
 };

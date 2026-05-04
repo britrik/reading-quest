@@ -6,7 +6,7 @@ import { isGrownupAuthorized } from "./grownup-auth";
 
 const IS_PROD = process.env.NODE_ENV === "production";
 
-export const DEFAULT_PROFILE_NAME = "Alex";
+export const DEFAULT_PROFILE_NAME = "Sylvester";
 
 export function xpForNextLevel(level: number): number {
   return level * 50;

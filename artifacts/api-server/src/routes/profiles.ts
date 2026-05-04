@@ -3,7 +3,7 @@ import { db, childProfilesTable, preferencesTable, sessionsTable, wordHelpEvents
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { isGrownupAuthorized, requireGrownup } from "../lib/grownup-auth";
-import { createSessionCookie, clearSessionCookie } from "../lib/kid-session";
+import { createSessionCookie, clearSessionCookie, getAuthenticatedProfileId } from "../lib/kid-session";
 
 const router: IRouter = Router();
 
@@ -93,7 +93,11 @@ router.patch("/profiles/:id", async (req, res) => {
   const settingOnboardedNow =
     parsed.data.onboardedAt !== undefined && parsed.data.onboardedAt !== null;
   const isOnboardingCompletion = existing.onboardedAt === null && settingOnboardedNow;
-  if (touchesIdentity && !isGrownupAuthorized(req) && !isOnboardingCompletion) {
+  // A kid is allowed to rename their own profile (the one tied to their session
+  // cookie) even after onboarding, so they can update their name from Settings.
+  const sessionProfileId = getAuthenticatedProfileId(req);
+  const isKidRenamingOwnProfile = touchesIdentity && sessionProfileId === id;
+  if (touchesIdentity && !isGrownupAuthorized(req) && !isOnboardingCompletion && !isKidRenamingOwnProfile) {
     res.status(401).json({ error: "Grown-ups passcode required" });
     return;
   }

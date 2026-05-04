@@ -176,7 +176,7 @@ function Dashboard({ token, onLogout }: { token: string, onLogout: () => void })
           <div className="flex items-center gap-4">
             <div className="hidden md:flex items-center gap-2 text-xs text-slate-500">
               <Lock className="w-3.5 h-3.5" />
-              <span>Alex never sees this screen</span>
+              <span>Your reader never sees this screen</span>
             </div>
             <button onClick={onLogout} className="text-xs font-semibold text-slate-500 hover:text-slate-900 px-3 py-1.5 rounded-md border border-slate-200">Lock</button>
           </div>

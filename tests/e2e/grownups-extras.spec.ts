@@ -93,7 +93,7 @@ test.describe("Grown-ups extras: vocabulary, weekly summary, export, profile man
 
   test("profile manager can rename a profile inline", async ({ page }) => {
     await logIntoGrownups(page);
-    // Add a fresh profile to avoid renaming the canonical Alex used elsewhere.
+    // Add a fresh profile to avoid renaming the canonical Sylvester used elsewhere.
     await page.getByTestId("open-add-profile").click();
     await page.getByTestId("manager-profile-name").fill("Riley");
     await page.getByTestId("manager-add-submit").click();

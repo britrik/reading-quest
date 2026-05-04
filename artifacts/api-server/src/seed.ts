@@ -429,7 +429,7 @@ export async function seed() {
 
   await db.execute(sql`TRUNCATE worlds, stories, chapters, finished_chapters, sessions, word_help_events, shop_items, owned_items, decor_state, transactions, child_profiles, preferences, unlocked_stories RESTART IDENTITY CASCADE`);
 
-  await db.insert(childProfilesTable).values({ name: "Alex", gems: 24, stars: 12, petLevel: 3, petXp: 100, fullness: 70, happiness: 75 });
+  await db.insert(childProfilesTable).values({ name: "Sylvester", gems: 24, stars: 12, petLevel: 3, petXp: 100, fullness: 70, happiness: 75 });
 
   let worldSort = 0;
   for (const w of WORLDS) {
