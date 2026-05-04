@@ -1,0 +1,171 @@
+name: AI PR Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [main]
+
+jobs:
+  ai-review:
+    runs-on: ubuntu-latest
+    # Skip forks — only run when the PR head is from the same repo
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    permissions:
+      pull-requests: write
+
+    steps:
+      - name: Gather diff and post AI review
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GLM_API_KEY: ${{ secrets.GLM_API_KEY }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set +e
+
+          # ------------------------------------------------------------------
+          # 1. Gather diff (only relevant file types, exclude noise)
+          # ------------------------------------------------------------------
+          DIFF_RAW=$(gh pr diff "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" -- \
+            '*.ts' '*.tsx' '*.js' '*.css' '*.json' '*.yml' '*.yaml' '*.md' \
+            2>/tmp/gh_pr_diff.err)
+          GH_DIFF_STATUS=$?
+          if [ "$GH_DIFF_STATUS" -ne 0 ]; then
+            echo "::warning::Failed to fetch PR diff; skipping AI review."
+            head -20 /tmp/gh_pr_diff.err
+            exit 0
+          fi
+
+          # Filter out noise files at the block level (entire hunks, not just headers)
+          DIFF=$(printf '%s\n' "$DIFF_RAW" | awk '
+            /^diff --git/ {
+              file = $0
+              sub(/^diff --git a\//, "", file)
+              sub(/ .*/, "", file)
+              skip = (
+                file == "package-lock.json" ||
+                file == "pnpm-lock.yaml" ||
+                file ~ /(^|\/)dist\// ||
+                file ~ /\.min\.js$/ ||
+                file ~ /^lib\/api-zod\/src\/generated\//
+              )
+            }
+            !skip { print }
+          ')
+
+          if [ -z "$DIFF" ]; then
+            echo "No relevant files changed — skipping AI review."
+            exit 0
+          fi
+
+          # ------------------------------------------------------------------
+          # 2. Truncate diff at 40 KB
+          # ------------------------------------------------------------------
+          MAX_BYTES=40960
+          DIFF=$(echo "$DIFF" | head -c "$MAX_BYTES")
+
+          # ------------------------------------------------------------------
+          # 3. Call GLM-5.1 with retries + exponential back-off
+          # ------------------------------------------------------------------
+          SYSTEM_PROMPT=$(cat <<'SYSEOF'
+          You are an expert code reviewer for a children's reading application.
+          Review the following diff for: security (especially child data protection and COPPA compliance),
+          correctness, error handling, race conditions, test coverage, and performance.
+          Use British English. Focus on substantive issues — not style or formatting.
+          SYSEOF
+          )
+
+          USER_PROMPT=$(cat <<USREOF
+          Please review the following pull-request diff and provide a structured review.
+
+          ## Diff
+
+          \`\`\`diff
+          ${DIFF}
+          \`\`\`
+
+          ## Required output format
+
+          ### Summary
+          One-paragraph overview of what the PR does and overall impression.
+
+          ### Findings
+          For each issue found, include:
+          - **File & location**
+          - **Severity**: critical / high / medium / low
+          - **Description**
+          - **Suggested fix**
+
+          ### Verdict
+          State one of: **approve** or **request changes**, with a brief justification.
+          USREOF
+          )
+
+          PAYLOAD=$(jq -n \
+            --arg sys "$SYSTEM_PROMPT" \
+            --arg user "$USER_PROMPT" \
+            '{
+              model: "glm-5.1",
+              messages: [
+                { role: "system", content: $sys },
+                { role: "user",   content: $user }
+              ],
+              temperature: 0.3,
+              max_tokens: 4096
+            }')
+
+          API_URL="https://api.z.ai/api/coding/paas/v4/chat/completions"
+          MAX_RETRIES=3
+          RESPONSE=""
+
+          for ATTEMPT in $(seq 1 "$MAX_RETRIES"); do
+            echo "Attempt $ATTEMPT of $MAX_RETRIES …"
+            HTTP_CODE=$(curl -s -o /tmp/ai_review_response.json -w "%{http_code}" \
+              --max-time 120 \
+              -X POST "$API_URL" \
+              -H "Content-Type: application/json" \
+              -H "Authorization: Bearer $GLM_API_KEY" \
+              -d "$PAYLOAD")
+
+            if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ]; then
+              RESPONSE=$(jq -r '.choices[0].message.content // empty' /tmp/ai_review_response.json)
+              if [ -n "$RESPONSE" ]; then
+                echo "Review received successfully."
+                break
+              fi
+            fi
+
+            echo "Request failed (HTTP $HTTP_CODE) or empty response."
+            if [ "$ATTEMPT" -lt "$MAX_RETRIES" ]; then
+              DELAY=$((2 ** (ATTEMPT - 1) * 5))
+              echo "Retrying in ${DELAY}s …"
+              sleep "$DELAY"
+            fi
+          done
+
+          if [ -z "$RESPONSE" ]; then
+            echo "::warning::AI review failed after $MAX_RETRIES attempts — skipping."
+            exit 0
+          fi
+
+          # ------------------------------------------------------------------
+          # 4. Post review as a PR comment
+          # ------------------------------------------------------------------
+          # Write comment to a temp file to avoid quoting/indentation issues
+          COMMENT_FILE=$(mktemp)
+          cat > "$COMMENT_FILE" <<COMMENT_EOF
+          ## 🤖 AI Code Review (GLM-5.1)
+
+          ${RESPONSE}
+
+          ---
+          *This review was generated automatically by the AI review bot. Please use your judgement when acting on its suggestions.*
+          COMMENT_EOF
+
+          gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" \
+            --body-file "$COMMENT_FILE" \
+            && echo "Review comment posted." \
+            || echo "::warning::Failed to post review comment — continuing."
+
+          rm -f "$COMMENT_FILE"
+
+          exit 0
