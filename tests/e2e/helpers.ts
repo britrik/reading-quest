@@ -4,7 +4,7 @@ import AxeBuilder from "@axe-core/playwright";
 // Defaults match the api-server `dev` script so `pnpm run test:e2e` is
 // self-contained against the local dev workflow. Production builds never set
 // ENABLE_E2E_TEST_ROUTES=true so the route is 404 regardless of secret.
-const API_BASE = process.env.E2E_API_URL || "http://localhost:80";
+const API_BASE = process.env.E2E_API_URL || "http://localhost:5052";
 const TEST_SECRET = process.env.E2E_TEST_SECRET || "rq-dev-e2e-secret";
 
 const SECRET_HEADER = { "x-e2e-test-secret": TEST_SECRET };
