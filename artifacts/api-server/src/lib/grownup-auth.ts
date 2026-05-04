@@ -7,8 +7,10 @@ export function safeCompare(a: string, b: string): boolean {
   const bufA = Buffer.from(a, "utf-8");
   const bufB = Buffer.from(b, "utf-8");
   if (bufA.length !== bufB.length) {
-    // Still do a comparison to avoid leaking length info via timing
-    return timingSafeEqual(bufA, bufA);
+    // Still do a comparison to avoid leaking length info via timing,
+    // but always return false since the values differ.
+    timingSafeEqual(bufA, bufA);
+    return false;
   }
   return timingSafeEqual(bufA, bufB);
 }
