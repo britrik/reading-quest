@@ -67,7 +67,7 @@ describe("Home page", () => {
     } as never);
     renderWithProviders(<Home />);
     await waitFor(() => {
-      expect(document.body.textContent).toMatch(/continue your adventure/i);
+      expect(document.body.textContent).toMatch(/carry on your favo.* tale/i);
     });
   });
 });
