@@ -1,0 +1,78 @@
+
+## What likely went wrong
+
+v1 was tuned hard toward the PDA/ASD end of the spec: muted, no goals, no sound, no animation, NPCs that whisper every 45s. For an ADHD 7–10 year old, the first 5 seconds offer no novelty, no cause-and-effect, and nothing obviously *play-shaped*. We'll keep the no-demands ethos and add the sensory feedback, variable surprise, and instant agency ADHD brains need.
+
+## Principles kept
+
+- No instructions, no "correct answers", no timers, nothing to lose
+- Declarative language only ("the bridge has 12 stones")
+- Everything optional; nothing nags
+- A single sensory dial respects the child's autonomy
+
+## Principles added (for ADHD)
+
+- Touch = visible feedback in <100ms
+- Variable surprise (rectangles bloom into themed creatures based on dimensions)
+- Quiet collectible discoveries — no goals attached
+- Sound + motion + color with one dial, **default `cozy`**
+- World that subtly reacts when idle
+
+## v2 changes
+
+1. **Rectangles become creatures/structures.** Shape decides flavor: long line → 🐍 / 🚂, square → 🌸 / 🍯, even×even → 🍫, prime total → 💎 stubborn crystal (gentle shimmer), multiple of 10 → ⭐ ten-friend (soft glow), ×5 → 🖐️, ×3 → 🌿, ×2 → 🦋, else → 🌱. Math labels stay visible — the creature is the costume.
+
+2. **Discoveries shelf** (bottom of screen). Fills with little icons as he plays: first shape, first square, first prime, twin totals, row of fives, big patch (>100), rainbow (5 colors used)… Tap one → see its one-line declarative note. No %, no goals.
+
+3. **Sound (Web Audio, no asset files).** Pluck per row while drawing, warm chord on commit (pitch maps to total), short pentatonic arpeggio for skip-count walk. Mobile vibration on commit. Single master mute.
+
+4. **Skip-count walk button** on each selected shape. A glowing dot walks the grid in skip-count order (2, 4, 6… or 3, 6, 9…), each step a tone. ~3-second satisfying loop he can tap over and over — the single biggest replay hook.
+
+5. **Living world.** After ~8s idle: a tiny resident (Moss, Wren, Fern) wanders across the bottom and occasionally drops a one-line declarative thought near a shape. Very slow day/night tint. 1px sway on shape edges. All disabled in `quiet`.
+
+6. **Liveliness dial** in sensory panel — segmented `quiet · cozy · lively`, **default `cozy`** (your decision). Controls motion, sound volume, ambient activity, color saturation in one place. `quiet` = today's v1.
+
+7. **First-touch hook.** On empty paper, three tiny seed shapes (2×3, 5×5, 1×7) drift gently across, each labeled with its total. Tap one → it *plants* on the paper as a real shape. Solves the 5-second problem with zero instructions.
+
+8. **Widened palette.** Five tile tones (sage / clay / sky / butter / coral) — still oklch, still low-arousal vs. typical kids apps. `quiet` collapses back to sage/clay only.
+
+## Out of scope (this pass)
+
+Accounts / cloud sync, AI NPCs, new core mechanics, quests / levels / scores / streaks.
+
+## File layout
+
+```text
+src/lib/
+  sanctuary-storage.ts   + discoveries[], liveliness, soundOn, v1→v2 migration
+  declarative.ts         (no change needed — already exposes prompts)
+  audio.ts               NEW — Web Audio pentatonic synth, pluck/chord/walk/tap
+  creatures.ts           NEW — shape → creature emoji + 5-tone CSS helper
+  discoveries.ts         NEW — detect() returns new collectibles on each commit
+
+src/components/
+  Sandbox.tsx            rewired: liveliness dial, sounds, creature overlay,
+                         seed shapes on empty paper, skip-count walk button,
+                         discovery shelf, wandering resident
+
+src/styles.css           5-tile palette, pop-in / sway / drift / shimmer /
+                         pulse-ring keyframes
+```
+
+No new npm dependencies. All new motion checks `calmMotion`; all sound checks `soundOn`; both derived from the liveliness dial.
+
+## Defaults
+
+- Liveliness: **cozy** (lively-but-not-loud — motion, soft sound, wandering resident, full palette)
+- Storage key bumps `v1 → v2`; old v1 state auto-migrated into cozy defaults
+- Quiet mode (one tap) returns exactly the v1 experience
+
+## Build order
+
+1. Storage migration + liveliness/sound plumbing
+2. `audio.ts` + `creatures.ts` + `discoveries.ts`
+3. Palette + keyframes in `styles.css`
+4. Rewire Sandbox: creature overlay + pop-in + sounds on commit
+5. Skip-count walk + discovery shelf
+6. Seed shapes on empty paper + wandering resident
+7. QA pass at each liveliness setting (quiet must match v1)

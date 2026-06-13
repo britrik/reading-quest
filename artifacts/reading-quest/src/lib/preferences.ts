@@ -1,6 +1,7 @@
 export type FontSize = "small" | "medium" | "large";
 export type Soundscape = "none" | "forest" | "rain" | "ocean";
 export type LanguageVariant = "en-GB" | "en-US";
+export type Liveliness = "quiet" | "cozy" | "lively";
 
 export const LANGUAGE_VARIANTS: readonly LanguageVariant[] = ["en-GB", "en-US"];
 
@@ -14,6 +15,7 @@ export interface Preferences {
   sessionLengthSuggestionMin: number;
   breakReminders: boolean;
   languageVariant: LanguageVariant;
+  liveliness: Liveliness;
 }
 
 export const DEFAULT_PREFERENCES: Preferences = {
@@ -21,11 +23,12 @@ export const DEFAULT_PREFERENCES: Preferences = {
   highContrast: false,
   reducedMotion: false,
   voiceSpeed: 0.9,
-  soundscape: "none",
+  soundscape: "forest",
   soundEnabled: true,
   sessionLengthSuggestionMin: 15,
   breakReminders: true,
   languageVariant: "en-GB",
+  liveliness: "cozy",
 };
 
 /**

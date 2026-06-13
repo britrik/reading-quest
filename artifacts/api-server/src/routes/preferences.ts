@@ -10,6 +10,7 @@ const router: IRouter = Router();
 const FONT_SIZES = ["small", "medium", "large"] as const;
 const SOUNDSCAPES = ["none", "forest", "rain", "ocean"] as const;
 const LANGUAGE_VARIANTS = ["en-GB", "en-US"] as const;
+const LIVELINESS_LEVELS = ["quiet", "cozy", "lively"] as const;
 
 // Kid-safe fields the kid app may modify without grown-ups auth. voiceSpeed
 // lives here because it is a kid-comfort setting (read-aloud speed) that the
@@ -21,6 +22,7 @@ const KidPreferencesBody = z.object({
   voiceSpeed: z.number().min(0.5).max(1.5).optional(),
   soundscape: z.enum(SOUNDSCAPES).optional(),
   soundEnabled: z.boolean().optional(),
+  liveliness: z.enum(LIVELINESS_LEVELS).optional(),
 });
 
 // Grown-up-only fields. Writes require the grown-ups token (parental control
@@ -48,6 +50,7 @@ function serialize(row: typeof preferencesTable.$inferSelect, includeGrownup: bo
     soundscape: row.soundscape,
     soundEnabled: row.soundEnabled,
     languageVariant: row.languageVariant,
+    liveliness: row.liveliness,
   };
   if (!includeGrownup) return base;
   return {
@@ -110,6 +113,7 @@ router.put("/preferences", async (req, res) => {
   if (parsed.data.voiceSpeed !== undefined) patch.voiceSpeed = Math.round(parsed.data.voiceSpeed * 10);
   if (parsed.data.soundscape !== undefined) patch.soundscape = parsed.data.soundscape;
   if (parsed.data.soundEnabled !== undefined) patch.soundEnabled = parsed.data.soundEnabled;
+  if (parsed.data.liveliness !== undefined) patch.liveliness = parsed.data.liveliness;
   if (parsed.data.sessionLengthSuggestionMin !== undefined)
     patch.sessionLengthSuggestionMin = parsed.data.sessionLengthSuggestionMin;
   if (parsed.data.breakReminders !== undefined) patch.breakReminders = parsed.data.breakReminders;

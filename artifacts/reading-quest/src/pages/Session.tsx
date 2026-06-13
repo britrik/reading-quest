@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useLocation, useParams } from "wouter";
-import { Coffee, HelpCircle, ChevronRight, Gem, Footprints, Volume2, Heart, X, Sparkles } from "lucide-react";
+import { Coffee, HelpCircle, ChevronRight, Gem, Star, Footprints, Volume2, Heart, X, Sparkles } from "lucide-react";
 import { 
   useGetChapter, 
   useStartSession, 
@@ -20,7 +20,7 @@ import { toast } from "sonner";
 import type { TappableWord } from "@workspace/api-client-react";
 import { fetchPreferences, type Preferences } from "@/lib/preferences";
 import { getActiveProfileId } from "@/lib/profile";
-import { playChapterFinish } from "@/lib/sound";
+import { playChapterFinish, playWordTap, playPageTurn, playCelebration } from "@/lib/sound";
 import { useCopy } from "@/lib/copy";
 
 function speak(text: string, rate = 0.85): Promise<void> {
@@ -67,6 +67,7 @@ export default function Session() {
   const [pickedWordKey, setPickedWordKey] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [prefs, setPrefs] = useState<Preferences | null>(null);
+  const [celebration, setCelebration] = useState<{ gems: number; stars: number } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -150,6 +151,10 @@ export default function Session() {
   const pickedWord = pickedWordKey ? wordsMap.get(pickedWordKey) : null;
 
   const handlePickWord = (key: string) => {
+    // Immediate audio feedback — fires before the help panel renders
+    const lively = !prefs || prefs.liveliness !== "quiet";
+    if (lively) playWordTap(prefs?.soundEnabled ?? true);
+
     setPickedWordKey(key);
     const entry = wordsMap.get(key);
     if (!entry) return;
@@ -201,18 +206,29 @@ export default function Session() {
           activeSessionIdRef.current = null;
           initializedForChapterRef.current = null;
 
-          // Tiny celebratory chime, gated by the user's sound preference.
-          playChapterFinish(prefs?.soundEnabled ?? true);
-
-          toast.success("Chapter finished! 🎉", {
-            description: `You earned ${rewards.gemsAwarded} gems and ${rewards.starsAwarded} stars!`,
-            icon: <Sparkles className="w-5 h-5 text-yellow-400" />
-          });
-          
-          if (chapter.nextChapterId) {
-            setLocation(`/story/${storyId}/chapter/${chapter.nextChapterId}`);
+          const lively = !prefs || prefs.liveliness !== "quiet";
+          if (lively) {
+            playCelebration(prefs?.soundEnabled ?? true);
+            setCelebration({ gems: rewards.gemsAwarded, stars: rewards.starsAwarded });
+            setTimeout(() => {
+              setCelebration(null);
+              if (chapter.nextChapterId) {
+                setLocation(`/story/${storyId}/chapter/${chapter.nextChapterId}`);
+              } else {
+                setLocation(`/story/${storyId}`);
+              }
+            }, 2200);
           } else {
-            setLocation(`/story/${storyId}`);
+            playChapterFinish(prefs?.soundEnabled ?? true);
+            toast.success("Chapter finished! 🎉", {
+              description: `You earned ${rewards.gemsAwarded} gems and ${rewards.starsAwarded} stars!`,
+              icon: <Sparkles className="w-5 h-5 text-yellow-400" />
+            });
+            if (chapter.nextChapterId) {
+              setLocation(`/story/${storyId}/chapter/${chapter.nextChapterId}`);
+            } else {
+              setLocation(`/story/${storyId}`);
+            }
           }
         },
         onError: () => {
@@ -250,8 +266,47 @@ export default function Session() {
     });
   };
 
+  const PARTICLES = ["⭐", "💎", "✨", "🌟", "🎉", "💫", "🎊", "⚡"];
+
   return (
     <div className="min-h-[100dvh] w-full relative font-atkinson text-[#2D3142] overflow-hidden flex flex-col justify-end pb-8 bg-[#2D3142]">
+
+      {/* Chapter finish celebration overlay */}
+      {celebration && (
+        <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-black/70 backdrop-blur-sm">
+          <div className="relative flex flex-col items-center gap-6 animate-celebrate-in">
+            <div className="text-7xl md:text-9xl animate-wiggle">🎉</div>
+            <h2 className="font-fredoka text-4xl md:text-6xl font-bold text-white text-center drop-shadow-lg">
+              Amazing reading!
+            </h2>
+            <div className="flex gap-6 text-2xl font-fredoka font-bold">
+              <div className="bg-white/20 backdrop-blur-sm rounded-2xl px-6 py-3 flex items-center gap-2 animate-bounce-in text-white" style={{ animationDelay: "200ms" }}>
+                <Gem className="w-7 h-7 text-[#A5FFD6] fill-[#A5FFD6]" />
+                +{celebration.gems} gems
+              </div>
+              <div className="bg-white/20 backdrop-blur-sm rounded-2xl px-6 py-3 flex items-center gap-2 animate-bounce-in text-white" style={{ animationDelay: "380ms" }}>
+                <Star className="w-7 h-7 text-yellow-300 fill-yellow-300" />
+                +{celebration.stars} stars
+              </div>
+            </div>
+          </div>
+          {/* Floating particles */}
+          {PARTICLES.map((p, i) => (
+            <span
+              key={i}
+              className="absolute text-3xl md:text-4xl pointer-events-none animate-particle"
+              style={{
+                left: `${8 + (i * 12) % 84}%`,
+                bottom: "10%",
+                animationDelay: `${i * 140}ms`,
+                animationDuration: `${1200 + (i * 137) % 600}ms`,
+              }}
+            >
+              {p}
+            </span>
+          ))}
+        </div>
+      )}
       <div className="absolute inset-0 -z-20">
         <img 
           src={getImageUrl(chapter.sceneImageUrl || "/images/reading-quest/scene-forest.png")} 

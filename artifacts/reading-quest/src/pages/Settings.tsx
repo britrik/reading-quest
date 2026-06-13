@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
-import { Type, Eye, Wind, Volume2, ArrowLeft, User, Check } from "lucide-react";
+import { Type, Eye, Wind, Volume2, ArrowLeft, User, Check, Zap } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   applyPreferencesToDocument,
@@ -9,6 +9,7 @@ import {
   type Preferences,
   type FontSize,
   type Soundscape,
+  type Liveliness,
 } from "@/lib/preferences";
 import { getActiveProfileId } from "@/lib/profile";
 import { updateProfile } from "@/lib/profilesApi";
@@ -23,6 +24,12 @@ const SOUND_LABELS: Record<Soundscape, string> = {
   rain: "Rain",
   ocean: "Ocean",
 };
+
+const LIVELINESS_OPTIONS: { value: Liveliness; label: string; emoji: string; description: string }[] = [
+  { value: "quiet", label: "Quiet", emoji: "🌙", description: "Calm and still" },
+  { value: "cozy", label: "Cozy", emoji: "🌿", description: "Gentle & friendly" },
+  { value: "lively", label: "Lively", emoji: "⚡", description: "Full energy!" },
+];
 
 export default function Settings() {
   const copy = useCopy();
@@ -47,9 +54,7 @@ export default function Settings() {
         setPrefs(p);
         applyPreferencesToDocument(p);
       })
-      .catch(() => {
-        /* fall back to PageLoader */
-      });
+      .catch(() => {});
   }, []);
 
   async function update(patch: Partial<Preferences>) {
@@ -104,6 +109,33 @@ export default function Settings() {
 
         <h1 className="font-fredoka text-4xl font-bold mb-2">{copy.t("settingsTitle")}</h1>
         <p className="text-gray-700 mb-6">Make Reading Quest feel just right.</p>
+
+        {/* Liveliness dial — most prominent setting */}
+        <section className="bg-white rounded-3xl p-6 voxel-shadow mb-6">
+          <div className="flex items-center gap-2 mb-2">
+            <Zap className="w-5 h-5 text-[#FF9B54]" />
+            <h2 className="font-fredoka text-xl font-bold">Vibe</h2>
+          </div>
+          <p className="text-sm text-gray-600 mb-4">How alive should Reading Quest feel?</p>
+          <div className="grid grid-cols-3 gap-3">
+            {LIVELINESS_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => update({ liveliness: opt.value })}
+                className={`flex flex-col items-center gap-2 py-4 px-2 rounded-2xl border-2 transition-all ${
+                  prefs.liveliness === opt.value
+                    ? "border-[#FF9B54] bg-[#FFE5B4] scale-105"
+                    : "border-gray-200 hover:border-[#FF9B54]/40"
+                }`}
+              >
+                <span className="text-3xl">{opt.emoji}</span>
+                <span className="font-fredoka font-bold text-lg text-[#2D3142]">{opt.label}</span>
+                <span className="text-xs text-gray-500 text-center">{opt.description}</span>
+              </button>
+            ))}
+          </div>
+        </section>
 
         <section className="bg-white rounded-3xl p-6 voxel-shadow mb-6" data-testid="name-section">
           <div className="flex items-center gap-2 mb-4">

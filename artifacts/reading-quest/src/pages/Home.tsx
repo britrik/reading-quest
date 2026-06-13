@@ -1,9 +1,32 @@
+import { useState, useEffect, useRef } from "react";
 import { Link, useLocation } from "wouter";
 import { Star, Gem, Map, Heart, Play, Settings as SettingsIcon, Users } from "lucide-react";
 import { useGetMe, useListWorlds, useGetActiveSession } from "@workspace/api-client-react";
 import { PageLoader, PageError } from "@/components/PageStates";
 import { getImageUrl } from "@/lib/utils";
 import { useCopy } from "@/lib/copy";
+import { fetchPreferences, type Preferences } from "@/lib/preferences";
+import { getActiveProfileId } from "@/lib/profile";
+import { playCompanionPoke } from "@/lib/sound";
+
+const GREETINGS = [
+  { text: "Wanna explore a world together? 🌍", emoji: "🦊" },
+  { text: "Ready for your next adventure? ⚡", emoji: "✨" },
+  { text: "The forest is calling your name!", emoji: "🌲" },
+  { text: "I've been waiting for you! Let's go!", emoji: "🎉" },
+  { text: "So many stories... which will it be? 📖", emoji: "🌟" },
+  { text: "Pst! There are hidden words to find!", emoji: "🔍" },
+  { text: "Your reading streak is looking great!", emoji: "🔥" },
+  { text: "I heard a new story arrived today! 👀", emoji: "🎈" },
+];
+
+const POKE_REACTIONS = [
+  "Haha, hey! That tickles! 😄",
+  "Ooh! You found my secret spot! 🎯",
+  "Weeee! Do it again! 🎪",
+  "I knew you'd find me! 🙈",
+  "You're SO fast! Quick, pick a world! ⚡",
+];
 
 export default function Home() {
   const copy = useCopy();
@@ -12,13 +35,90 @@ export default function Home() {
   const { data: worlds, isLoading: worldsLoading, error: worldsError } = useListWorlds();
   const { data: activeSession, isLoading: sessionLoading } = useGetActiveSession();
 
+  const [prefs, setPrefs] = useState<Preferences | null>(null);
+  const [greetingIdx, setGreetingIdx] = useState(0);
+  const [companionAnim, setCompanionAnim] = useState<"float" | "wiggle" | "pop">("pop");
+  const [pokeCount, setPokeCount] = useState(0);
+  const [isIdle, setIsIdle] = useState(false);
+  const idleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const animTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    fetchPreferences(getActiveProfileId())
+      .then(setPrefs)
+      .catch(() => {});
+  }, []);
+
+  const resetIdleTimer = () => {
+    setIsIdle(false);
+    if (idleTimer.current) clearTimeout(idleTimer.current);
+    idleTimer.current = setTimeout(() => setIsIdle(true), 8000);
+  };
+
+  useEffect(() => {
+    resetIdleTimer();
+    window.addEventListener("mousemove", resetIdleTimer);
+    window.addEventListener("touchstart", resetIdleTimer);
+    window.addEventListener("keydown", resetIdleTimer);
+    return () => {
+      if (idleTimer.current) clearTimeout(idleTimer.current);
+      window.removeEventListener("mousemove", resetIdleTimer);
+      window.removeEventListener("touchstart", resetIdleTimer);
+      window.removeEventListener("keydown", resetIdleTimer);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isIdle) return;
+    setCompanionAnim("wiggle");
+    if (animTimeoutRef.current) clearTimeout(animTimeoutRef.current);
+    animTimeoutRef.current = setTimeout(() => setCompanionAnim("float"), 700);
+    const nudgeIdx = (greetingIdx + 1 + Math.floor(Math.random() * (GREETINGS.length - 1))) % GREETINGS.length;
+    setGreetingIdx(nudgeIdx);
+  }, [isIdle]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (!isIdle) {
+        setGreetingIdx((i) => (i + 1) % GREETINGS.length);
+      }
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [isIdle]);
+
+  const handleCompanionPoke = () => {
+    const lively = !prefs || prefs.liveliness !== "quiet";
+    if (lively) playCompanionPoke(prefs?.soundEnabled ?? true);
+    setCompanionAnim("wiggle");
+    if (animTimeoutRef.current) clearTimeout(animTimeoutRef.current);
+    animTimeoutRef.current = setTimeout(() => setCompanionAnim("float"), 700);
+    setPokeCount((c) => c + 1);
+    resetIdleTimer();
+  };
+
   if (meLoading || worldsLoading || sessionLoading) return <PageLoader />;
   if (meError || worldsError || !me || !worlds) return <PageError />;
 
+  const greeting = GREETINGS[greetingIdx]!;
+  const pokeReaction = POKE_REACTIONS[pokeCount % POKE_REACTIONS.length]!;
+  const isPoked = pokeCount > 0;
+
+  const companionClass =
+    companionAnim === "wiggle"
+      ? "animate-wiggle"
+      : companionAnim === "pop"
+        ? "animate-pop-in"
+        : "animate-float";
+
+  const lively = !prefs || prefs.liveliness !== "quiet";
+
   return (
-    <div className="min-h-[100dvh] w-full bg-[#FFE5B4] font-atkinson text-[#2D3142] relative overflow-hidden flex flex-col">
+    <div
+      className="min-h-[100dvh] w-full bg-[#FFE5B4] font-atkinson text-[#2D3142] relative overflow-hidden flex flex-col"
+      onClick={resetIdleTimer}
+    >
       <div className="absolute top-[-10%] left-[-10%] w-[120%] h-[50%] bg-gradient-to-b from-[#84DCC6] to-transparent opacity-40 pointer-events-none" />
-      
+
       <header className="p-6 flex justify-between items-center relative z-10">
         <Link href="/pet" className="flex items-center gap-3 bg-white/60 backdrop-blur-sm px-4 py-2 rounded-full voxel-shadow hover:-translate-y-1 transition-transform">
           <Heart className="w-6 h-6 text-[#FF9B54] fill-[#FF9B54] animate-pulse-soft" />
@@ -63,7 +163,7 @@ export default function Home() {
       <main className="flex-1 flex flex-col items-center px-6 pb-12 relative z-10">
         {activeSession && (
           <div className="w-full max-w-2xl mb-8 animate-slide-up">
-            <Link 
+            <Link
               href={`/story/${activeSession.storyId}/chapter/${activeSession.chapterId}`}
               className="w-full bg-[#A5FFD6] rounded-3xl p-6 flex items-center justify-between gap-6 voxel-shadow hover:-translate-y-1 transition-transform text-left group"
             >
@@ -79,20 +179,33 @@ export default function Home() {
         )}
 
         <div className="flex flex-col items-center mb-12 mt-4">
-          <div className="w-48 h-48 relative animate-float mb-6">
-            <img 
-              src={getImageUrl("/images/reading-quest/companion.png")}
-              alt="Friendly floating companion"
-              className="w-full h-full object-contain"
-            />
-            <div className="absolute inset-0 bg-[#A5FFD6] rounded-full blur-3xl opacity-30 -z-10" />
-          </div>
-          
-          <div className="bg-white/80 backdrop-blur-md px-8 py-6 rounded-3xl voxel-shadow relative max-w-lg text-center">
+          <button
+            type="button"
+            aria-label="Poke the companion"
+            onClick={handleCompanionPoke}
+            className="w-48 h-48 relative cursor-pointer focus:outline-none select-none"
+            title="Poke me!"
+          >
+            <div className={`w-full h-full ${lively ? companionClass : "animate-float"}`}>
+              <img
+                src={getImageUrl("/images/reading-quest/companion.png")}
+                alt="Friendly floating companion"
+                className="w-full h-full object-contain"
+              />
+              <div className="absolute inset-0 bg-[#A5FFD6] rounded-full blur-3xl opacity-30 -z-10" />
+            </div>
+            {lively && (
+              <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 text-xs font-fredoka text-[#FF9B54] bg-white/80 rounded-full px-2 py-0.5 opacity-60 pointer-events-none">
+                poke me!
+              </div>
+            )}
+          </button>
+
+          <div className="bg-white/80 backdrop-blur-md px-8 py-6 rounded-3xl voxel-shadow relative max-w-lg text-center mt-6 animate-slide-up">
             <div className="absolute -top-4 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[16px] border-l-transparent border-b-[20px] border-b-white/80 border-r-[16px] border-r-transparent" />
-            <h1 className="font-fredoka text-3xl font-bold mb-2">Hey there, {me.name}! 👋</h1>
-            <p className="text-xl leading-relaxed text-gray-700">
-              The worlds are looking pretty cool today. Wanna explore one together?
+            <h1 className="font-fredoka text-3xl font-bold mb-2">Hey there, {me.name}! {greeting.emoji}</h1>
+            <p className="text-xl leading-relaxed text-gray-700 transition-all duration-500">
+              {isPoked ? pokeReaction : greeting.text}
             </p>
           </div>
         </div>
@@ -103,14 +216,15 @@ export default function Home() {
             Pick your adventure
           </h2>
 
-          {worlds.map((world) => (
-            <Link 
+          {worlds.map((world, idx) => (
+            <Link
               key={world.id}
               href={`/world/${world.id}`}
-              className="w-full bg-white rounded-3xl p-4 flex items-center gap-6 voxel-shadow hover:-translate-y-1 transition-transform text-left group"
+              className="w-full bg-white rounded-3xl p-4 flex items-center gap-6 voxel-shadow hover:-translate-y-1 transition-transform text-left group animate-slide-up"
+              style={lively ? { animationDelay: `${idx * 80}ms` } : undefined}
             >
               <div className="w-32 h-32 rounded-2xl overflow-hidden shrink-0 voxel-panel" style={{ borderColor: world.chipColor }}>
-                <img 
+                <img
                   src={getImageUrl(world.thumbnailUrl)}
                   alt={world.name}
                   className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
@@ -121,9 +235,9 @@ export default function Home() {
                   <h3 className="font-fredoka text-2xl font-bold text-[#2D3142]">{world.name}</h3>
                   <div className="flex gap-1">
                     {[1, 2, 3].map((star) => (
-                      <Star 
-                        key={star} 
-                        className={`w-5 h-5 ${star <= world.difficulty ? 'text-[#FF9B54] fill-[#FF9B54]' : 'text-gray-200 fill-gray-200'}`} 
+                      <Star
+                        key={star}
+                        className={`w-5 h-5 ${star <= world.difficulty ? "text-[#FF9B54] fill-[#FF9B54]" : "text-gray-200 fill-gray-200"}`}
                         style={{ color: star <= world.difficulty ? world.chipColor : undefined, fill: star <= world.difficulty ? world.chipColor : undefined }}
                       />
                     ))}
@@ -132,7 +246,7 @@ export default function Home() {
                 <p className="text-lg text-gray-600 leading-relaxed mb-4">
                   {world.blurb}
                 </p>
-                <span 
+                <span
                   className="inline-block px-4 py-1.5 rounded-full font-bold font-fredoka text-sm"
                   style={{ backgroundColor: world.chipColor, color: world.chipTextColor }}
                 >
