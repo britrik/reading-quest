@@ -1,5 +1,8 @@
 import { defineConfig, devices } from "@playwright/test";
 
+// Must match tests/e2e/helpers.ts. A reused (already running) api-server must
+// be started with the same GROWNUPS_PASSCODE for the grown-ups specs to pass.
+const E2E_GROWNUPS_PASSCODE = process.env.E2E_GROWNUPS_PASSCODE || "rq-e2e-grownups-7193";
 const WEB_URL = process.env.E2E_BASE_URL || "http://localhost:80";
 
 export default defineConfig({
@@ -18,7 +21,7 @@ export default defineConfig({
   webServer: [
     {
       command:
-        "PORT=5051 ENABLE_E2E_TEST_ROUTES=true E2E_TEST_SECRET=rq-dev-e2e-secret pnpm --filter @workspace/api-server run dev",
+        `PORT=5051 ENABLE_E2E_TEST_ROUTES=true E2E_TEST_SECRET=rq-dev-e2e-secret GROWNUPS_PASSCODE=${E2E_GROWNUPS_PASSCODE} pnpm --filter @workspace/api-server run dev`,
       url: "http://localhost:80/api/healthz",
       reuseExistingServer: true,
       timeout: 60_000,

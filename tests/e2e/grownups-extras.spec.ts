@@ -7,12 +7,13 @@ import {
   resetTestProfile,
   setActiveProfileForPage,
   waitForRoot,
+  E2E_GROWNUPS_PASSCODE,
 } from "./helpers";
 
 async function logIntoGrownups(page: import("@playwright/test").Page) {
   await page.goto("/grownups");
   await waitForRoot(page);
-  await page.getByPlaceholder("Passcode").fill("1234");
+  await page.getByPlaceholder("Passcode").fill(E2E_GROWNUPS_PASSCODE);
   await page.getByRole("button", { name: /enter/i }).click();
   await expect(page.getByText(/family dashboard/i)).toBeVisible();
 }

@@ -5,6 +5,7 @@ import {
   waitForRoot,
   apiPost,
   getFirstChapterIds,
+  E2E_GROWNUPS_PASSCODE,
 } from "./helpers";
 
 test.beforeEach(async () => {
@@ -34,7 +35,7 @@ test("grownups dashboard reflects kid activity (after finishing a chapter)", asy
 
   await page.goto("/grownups");
   await waitForRoot(page);
-  await page.getByPlaceholder(/passcode|••••/i).fill("1234");
+  await page.getByPlaceholder(/passcode|••••/i).fill(E2E_GROWNUPS_PASSCODE);
   await page.getByRole("button", { name: /unlock|enter|sign in/i }).click();
 
   // Dashboard cards become visible — at least one chapter finished is shown

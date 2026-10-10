@@ -5,6 +5,7 @@ import router from "./index";
 import { seed } from "../seed";
 
 let app: express.Express;
+const TEST_PASSCODE = process.env.GROWNUPS_PASSCODE ?? "";
 
 interface TestResponse<T> {
   status: number;
@@ -151,13 +152,25 @@ describe("grownups auth + payload contracts", () => {
     expect(r.status).toBe(401);
   });
 
+  it("rejects the old default passcode 1234", async () => {
+    const r = await request("POST", "/api/grownups/auth", { passcode: "1234" });
+    expect(r.status).toBe(401);
+  });
+
+  it("issues a token that also unlocks the insights routes", async () => {
+    const auth = await request<AuthResponse>("POST", "/api/grownups/auth", { passcode: TEST_PASSCODE });
+    expect(auth.status).toBe(200);
+    const vocab = await request("GET", "/api/grownups/vocabulary", undefined, { "x-grownup-token": auth.body.token });
+    expect(vocab.status).toBe(200);
+  });
+
   it("rejects missing token on protected route", async () => {
     const r = await request("GET", "/api/grownups/summary");
     expect(r.status).toBe(401);
   });
 
   it("returns OpenAPI-shaped payloads when authenticated", async () => {
-    const auth = await request<AuthResponse>("POST", "/api/grownups/auth", { passcode: "1234" });
+    const auth = await request<AuthResponse>("POST", "/api/grownups/auth", { passcode: TEST_PASSCODE });
     expect(auth.status).toBe(200);
     const token = auth.body.token;
 
@@ -493,7 +506,7 @@ describe("weekly summary delivery", () => {
   // tests use), so we mint one for this suite.
   let realToken: Record<string, string>;
   beforeAll(async () => {
-    const auth = await request<AuthResponse>("POST", "/api/grownups/auth", { passcode: "1234" });
+    const auth = await request<AuthResponse>("POST", "/api/grownups/auth", { passcode: TEST_PASSCODE });
     realToken = { "x-grownup-token": auth.body.token };
   });
 

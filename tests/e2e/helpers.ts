@@ -7,6 +7,10 @@ import AxeBuilder from "@axe-core/playwright";
 const API_BASE = process.env.E2E_API_URL || "http://localhost:80";
 const TEST_SECRET = process.env.E2E_TEST_SECRET || "rq-dev-e2e-secret";
 
+// Grown-ups passcode the api-server under test is started with (see
+// playwright.config.ts). There is no built-in default passcode any more.
+export const E2E_GROWNUPS_PASSCODE = process.env.E2E_GROWNUPS_PASSCODE || "rq-e2e-grownups-7193";
+
 const SECRET_HEADER = { "x-e2e-test-secret": TEST_SECRET };
 
 export async function apiGet(pathname: string) {
