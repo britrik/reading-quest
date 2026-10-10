@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import { timingSafeEqual } from "node:crypto";
+import { randomBytes, timingSafeEqual } from "node:crypto";
 
 const IS_PROD = process.env.NODE_ENV === "production";
 
@@ -15,22 +15,27 @@ export function safeCompare(a: string, b: string): boolean {
   return timingSafeEqual(bufA, bufB);
 }
 
+if (IS_PROD && !process.env.GROWNUPS_TOKEN_SECRET) {
+  throw new Error("GROWNUPS_TOKEN_SECRET environment variable is required in production.");
+}
+
 /**
- * Grown-ups gate. In production we require an exact-token match against the
- * issued token from /api/grownups/auth (which we cannot import here without
- * a circular dep, so we accept any value that starts with "grownup:" plus
- * the configured secret). In dev/test we accept any token starting with
- * "grownup:" so integration tests can mint their own.
+ * The single grown-ups bearer token, issued by POST /api/grownups/auth after a
+ * correct passcode. Without GROWNUPS_TOKEN_SECRET (dev/test only) it is random
+ * per process, so it can only be obtained through the auth endpoint.
+ */
+export const GROWNUP_TOKEN = `grownup:${
+  process.env.GROWNUPS_TOKEN_SECRET || randomBytes(32).toString("hex")
+}`;
+
+/**
+ * Grown-ups gate, shared by every grown-ups route. Exact, timing-safe match
+ * against the issued token in every environment: a forged "grownup:*" value
+ * is rejected in dev/test as well as production.
  */
 export function isGrownupAuthorized(req: Request): boolean {
   const provided = req.header("x-grownup-token");
-  if (!provided) return false;
-  if (IS_PROD) {
-    const secret = process.env.GROWNUPS_TOKEN_SECRET;
-    if (!secret) return false;
-    return safeCompare(provided, `grownup:${secret}`);
-  }
-  return provided.startsWith("grownup:");
+  return typeof provided === "string" && safeCompare(provided, GROWNUP_TOKEN);
 }
 
 export function requireGrownup(req: Request, res: Response): boolean {

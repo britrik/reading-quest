@@ -5,6 +5,7 @@ import router from "./index";
 import { seed } from "../seed";
 
 let app: express.Express;
+const TEST_PASSCODE = process.env.GROWNUPS_PASSCODE ?? "";
 
 interface TestResponse<T> {
   status: number;
@@ -46,6 +47,8 @@ interface ShopItem { id: string; locked: boolean; owned: boolean }
 interface Session { id: number; chapterId: number; status: string; activeMs: number }
 interface FinishResponse { session: Session; gemsAwarded: number; starsAwarded: number; xpAwarded: number }
 interface AuthResponse { token: string }
+// Filled in by the top-level beforeAll with the issued token.
+const GROWNUP: Record<string, string> = {};
 interface Summary { minutesRead: number; sessionsCount: number }
 interface Word { word: string; lastSeenAt: string }
 interface FinishedStory { id: number; title: string; worldName: string }
@@ -63,6 +66,9 @@ beforeAll(async () => {
   const { sql: rawSql } = await import("drizzle-orm");
   await realDb.execute(rawSql`TRUNCATE worlds, stories, chapters, finished_chapters, sessions, word_help_events, shop_items, owned_items, decor_state, transactions, child_profiles, preferences, unlocked_stories RESTART IDENTITY CASCADE`);
   await seed();
+  // Grown-ups routes accept only the exact token issued by /api/grownups/auth.
+  const auth = await request<AuthResponse>("POST", "/api/grownups/auth", { passcode: TEST_PASSCODE });
+  GROWNUP["x-grownup-token"] = auth.body.token;
 });
 
 describe("worlds routes", () => {
@@ -151,13 +157,25 @@ describe("grownups auth + payload contracts", () => {
     expect(r.status).toBe(401);
   });
 
+  it("rejects the old default passcode 1234", async () => {
+    const r = await request("POST", "/api/grownups/auth", { passcode: "1234" });
+    expect(r.status).toBe(401);
+  });
+
+  it("issues a token that also unlocks the insights routes", async () => {
+    const auth = await request<AuthResponse>("POST", "/api/grownups/auth", { passcode: TEST_PASSCODE });
+    expect(auth.status).toBe(200);
+    const vocab = await request("GET", "/api/grownups/vocabulary", undefined, { "x-grownup-token": auth.body.token });
+    expect(vocab.status).toBe(200);
+  });
+
   it("rejects missing token on protected route", async () => {
     const r = await request("GET", "/api/grownups/summary");
     expect(r.status).toBe(401);
   });
 
   it("returns OpenAPI-shaped payloads when authenticated", async () => {
-    const auth = await request<AuthResponse>("POST", "/api/grownups/auth", { passcode: "1234" });
+    const auth = await request<AuthResponse>("POST", "/api/grownups/auth", { passcode: TEST_PASSCODE });
     expect(auth.status).toBe(200);
     const token = auth.body.token;
 
@@ -188,6 +206,18 @@ describe("grownups auth + payload contracts", () => {
     }
   });
 
+  it.each([
+    ["GET", "/api/grownups/vocabulary"],
+    ["GET", "/api/grownups/export"],
+    ["GET", "/api/grownups/summary"],
+    ["POST", "/api/profiles"],
+  ])("rejects a forged grownup:* token on %s %s", async (method, path) => {
+    const r = await request(method, path, method === "POST" ? { name: "Forged" } : undefined, {
+      "x-grownup-token": "grownup:anything",
+    });
+    expect(r.status).toBe(401);
+  });
+
   it("rejects predictable bypass token", async () => {
     const r = await request("GET", "/api/grownups/summary", undefined, {
       "x-grownup-token": "grownup:rq-grownups-token",
@@ -213,7 +243,6 @@ interface PrefsRow {
   weeklyEmailAddress: string | null;
 }
 
-const GROWNUP = { "x-grownup-token": "grownup:test-integration" };
 
 describe("profiles CRUD + grown-ups gate", () => {
   it("rejects POST /api/profiles without a grown-ups token", async () => {
@@ -488,14 +517,9 @@ describe("story unlock with gems", () => {
 });
 
 describe("weekly summary delivery", () => {
-  // The grownups router validates the strict per-process token from
-  // /api/grownups/auth (not the dev "grownup:*" fallback the rest of the
-  // tests use), so we mint one for this suite.
-  let realToken: Record<string, string>;
-  beforeAll(async () => {
-    const auth = await request<AuthResponse>("POST", "/api/grownups/auth", { passcode: "1234" });
-    realToken = { "x-grownup-token": auth.body.token };
-  });
+  // Reuses the token issued by /api/grownups/auth in the top-level beforeAll
+  // (minting again here would trip the auth rate limiter).
+  const realToken = GROWNUP;
 
   it("send returns 501 not_configured (and points to the printable fallback)", async () => {
     const r = await request<{ reason: string; fallback: string }>(

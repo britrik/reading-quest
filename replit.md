@@ -33,7 +33,7 @@ A PDA-friendly chapter-reading app for 7-9yo reluctant readers. Routes:
 - `/story/:storyId` Chapter picker
 - `/story/:storyId/chapter/:chapterId` Reading session (heartbeat, word help, finish)
 - `/pet` Pet Den (feed/equip/decor/shop)
-- `/grownups` Passcode-protected dashboard (default passcode `1234` via `GROWNUPS_PASSCODE` env)
+- `/grownups` Passcode-protected dashboard (passcode from the `GROWNUPS_PASSCODE` env var; no default. Required in production, min 6 chars, common values like `1234` rejected at startup. In dev, if unset, a temporary random passcode is logged on start)
 
 Reward formula: `gems = 5 + chapter.sortIndex`, `stars = 1`, `xp = 10` per first finish.
 Pet level threshold: `xpForNextLevel(level) = level * 50`. Heartbeat clamps deltas to 30s.

@@ -40,7 +40,7 @@ Production assumptions for this scan:
 
 The application currently uses no user session or account authentication for normal kid-facing API routes. Instead, route handlers often trust the caller-selected `x-profile-id` header to decide which child profile a request should operate on. The system must not treat a client-supplied profile identifier as proof of identity. Any request that reads or mutates per-profile data MUST be bound to a server-authenticated principal or to a server-issued, unforgeable profile-selection mechanism.
 
-The grown-ups dashboard uses a custom passcode flow that returns a bearer-style `x-grownup-token`. The application MUST resist online guessing of the passcode and MUST ensure every grown-ups-only route validates the same production secret consistently.
+The grown-ups dashboard uses a custom passcode flow that returns a bearer-style `x-grownup-token`. The application MUST resist online guessing of the passcode and MUST ensure every grown-ups-only route validates the same production secret consistently. There is no built-in default passcode: `GROWNUPS_PASSCODE` is required in production and is strength-checked at startup (minimum 6 characters, common values such as `1234` rejected); all grown-ups routes share one timing-safe token check (`lib/grownup-auth.ts`).
 
 ### Tampering
 

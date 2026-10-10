@@ -7,12 +7,12 @@ import {
   resetTestProfile,
   setActiveProfileForPage,
   waitForRoot,
-} from "./helpers";
+  E2E_GROWNUPS_PASSCODE, E2E_GROWNUP_TOKEN } from "./helpers";
 
 async function logIntoGrownups(page: import("@playwright/test").Page) {
   await page.goto("/grownups");
   await waitForRoot(page);
-  await page.getByPlaceholder("Passcode").fill("1234");
+  await page.getByPlaceholder("Passcode").fill(E2E_GROWNUPS_PASSCODE);
   await page.getByRole("button", { name: /enter/i }).click();
   await expect(page.getByText(/family dashboard/i)).toBeVisible();
 }
@@ -127,7 +127,7 @@ test.describe("Grown-ups extras: vocabulary, weekly summary, export, profile man
     // grown-up token is present (privacy).
     const prefs = await (
       await request.get("/api/preferences", {
-        headers: { "x-profile-id": "1", "x-grownup-token": "grownup:e2e-token" },
+        headers: { "x-profile-id": "1", "x-grownup-token": E2E_GROWNUP_TOKEN },
       })
     ).json();
     expect(prefs.weeklyEmailOptIn).toBe(true);

@@ -4,8 +4,7 @@ import {
   getFirstProfileId,
   resetTestProfile,
   setActiveProfileForPage,
-  waitForRoot,
-} from "./helpers";
+  waitForRoot, E2E_GROWNUP_TOKEN } from "./helpers";
 
 test.describe("Cozy Settings", () => {
   test.beforeEach(async () => {
@@ -47,7 +46,7 @@ test.describe("Cozy Settings", () => {
     const headers = {
       "x-profile-id": String(id),
       "content-type": "application/json",
-      "x-grownup-token": "grownup:e2e-token",
+      "x-grownup-token": E2E_GROWNUP_TOKEN,
     };
 
     let res = await request.get("/api/preferences", { headers: { "x-profile-id": String(id) } });
@@ -74,7 +73,7 @@ test.describe("Cozy Settings", () => {
   test("preferences are scoped per-profile", async ({ request }) => {
     const id1 = await getFirstProfileId();
     const created = await request.post("/api/profiles", {
-      headers: { "content-type": "application/json", "x-grownup-token": "grownup:e2e-token" },
+      headers: { "content-type": "application/json", "x-grownup-token": E2E_GROWNUP_TOKEN },
       data: { name: "Pref2", avatar: "bunny" },
     });
     const p2 = (await created.json()) as { id: number };

@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
-import { apiGet, expectNoAxeViolations, resetTestProfile, waitForRoot } from "./helpers";
+import { E2E_GROWNUPS_PASSCODE, apiGet, expectNoAxeViolations, resetTestProfile, waitForRoot, E2E_GROWNUP_TOKEN } from "./helpers";
 
-const GROWNUP_HEADER = { "x-grownup-token": "grownup:e2e-token", "content-type": "application/json" };
+const GROWNUP_HEADER = { "x-grownup-token": E2E_GROWNUP_TOKEN, "content-type": "application/json" };
 
 test.describe("Multi-profile system", () => {
   test.beforeEach(async () => {
@@ -95,7 +95,7 @@ test.describe("Multi-profile system", () => {
   test("deleting the last profile is forbidden", async ({ request }) => {
     const list = (await apiGet("/api/profiles")) as Array<{ id: number }>;
     const id = list[0]!.id;
-    const res = await request.delete(`/api/profiles/${id}`, { headers: { "x-grownup-token": "grownup:e2e-token" } });
+    const res = await request.delete(`/api/profiles/${id}`, { headers: { "x-grownup-token": E2E_GROWNUP_TOKEN } });
     expect(res.status()).toBe(400);
   });
 
@@ -157,7 +157,7 @@ test.describe("Multi-profile system", () => {
 
     const auth = await request.post("/api/grownups/auth", {
       headers: { "content-type": "application/json" },
-      data: { passcode: "1234" },
+      data: { passcode: E2E_GROWNUPS_PASSCODE },
     });
     const { token } = (await auth.json()) as { token: string };
     const vocab1 = await request.get("/api/grownups/vocabulary", {

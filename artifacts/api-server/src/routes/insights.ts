@@ -15,21 +15,14 @@ import {
 } from "@workspace/db";
 import { and, eq, gte, sql, desc } from "drizzle-orm";
 import { resolveProfile } from "../lib/profile";
+import { requireGrownup } from "../lib/grownup-auth";
 
 const router: IRouter = Router();
 
-const IS_PROD = process.env.NODE_ENV === "production";
-const PASSCODE_SECRET = process.env.GROWNUPS_TOKEN_SECRET || "";
-const PASSCODE = process.env.GROWNUPS_PASSCODE || "1234";
-const TOKEN = `grownup:${PASSCODE_SECRET || PASSCODE}`;
-
+// Grown-ups gate: shared with the rest of the API so every grown-ups route
+// validates the same token, using a timing-safe comparison.
 function gate(req: import("express").Request, res: import("express").Response): boolean {
-  const provided = req.header("x-grownup-token");
-  if (!provided || (IS_PROD ? provided !== TOKEN : !provided.startsWith("grownup:"))) {
-    res.status(401).json({ error: "Unauthorized" });
-    return false;
-  }
-  return true;
+  return requireGrownup(req, res);
 }
 
 /**

@@ -6,7 +6,7 @@ import {
   resetTestProfile,
   setActiveProfileForPage,
   waitForRoot,
-} from "./helpers";
+  E2E_GROWNUPS_PASSCODE, E2E_GROWNUP_TOKEN } from "./helpers";
 
 test.describe("British/American English toggle", () => {
   test.beforeEach(async () => {
@@ -34,7 +34,7 @@ test.describe("British/American English toggle", () => {
       headers: {
         "x-profile-id": String(id),
         "content-type": "application/json",
-        "x-grownup-token": "grownup:e2e-token",
+        "x-grownup-token": E2E_GROWNUP_TOKEN,
       },
       data: { languageVariant: "en-US" },
     });
@@ -82,7 +82,7 @@ test.describe("British/American English toggle", () => {
       headers: {
         "x-profile-id": String(id),
         "content-type": "application/json",
-        "x-grownup-token": "grownup:e2e-token",
+        "x-grownup-token": E2E_GROWNUP_TOKEN,
       },
       data: { languageVariant: "en-US" },
     });
@@ -115,7 +115,7 @@ test.describe("British/American English toggle", () => {
     // refetch and surface the new variant without a full page reload.
     await page.goto("/grownups");
     await waitForRoot(page);
-    await page.getByPlaceholder(/passcode|••••/i).fill("1234");
+    await page.getByPlaceholder(/passcode|••••/i).fill(E2E_GROWNUPS_PASSCODE);
     await page.getByRole("button", { name: /unlock|enter|sign in/i }).click();
 
     const select = page.getByTestId("settings-language-variant");
@@ -138,7 +138,7 @@ test.describe("British/American English toggle", () => {
   test("grown-ups settings card lets a grown-up toggle the language style", async ({ page }) => {
     await page.goto("/grownups");
     await waitForRoot(page);
-    await page.getByPlaceholder(/passcode|••••/i).fill("1234");
+    await page.getByPlaceholder(/passcode|••••/i).fill(E2E_GROWNUPS_PASSCODE);
     await page.getByRole("button", { name: /unlock|enter|sign in/i }).click();
 
     const select = page.getByTestId("settings-language-variant");
