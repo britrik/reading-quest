@@ -42,13 +42,15 @@ export class GrownupPasscodeConfigError extends Error {
 
 /** Returns null when the passcode is acceptable, otherwise a reason. */
 export function validateGrownupPasscode(passcode: string): string | null {
-  if (passcode.length < MIN_PASSCODE_LENGTH) {
+  // Count Unicode code points, not UTF-16 code units, so astral characters
+  // (e.g. emoji) are not double-counted towards the minimum length.
+  if (Array.from(passcode).length < MIN_PASSCODE_LENGTH) {
     return `must be at least ${MIN_PASSCODE_LENGTH} characters`;
   }
   if (WEAK_PASSCODES.has(passcode.toLowerCase())) {
     return "is a commonly used passcode";
   }
-  if (/^(.)\1+$/.test(passcode)) {
+  if (/^(.)\1+$/su.test(passcode)) {
     return "must not be a single repeated character";
   }
   return null;

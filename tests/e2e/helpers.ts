@@ -10,6 +10,11 @@ const TEST_SECRET = process.env.E2E_TEST_SECRET || "rq-dev-e2e-secret";
 // Grown-ups passcode the api-server under test is started with (see
 // playwright.config.ts). There is no built-in default passcode any more.
 export const E2E_GROWNUPS_PASSCODE = process.env.E2E_GROWNUPS_PASSCODE || "rq-e2e-grownups-7193";
+// Must match GROWNUPS_TOKEN_SECRET passed to the api-server in
+// playwright.config.ts: the server accepts only its exact issued token.
+export const E2E_GROWNUP_TOKEN = `grownup:${
+  process.env.E2E_GROWNUPS_TOKEN_SECRET || "rq-e2e-grownups-token-5821"
+}`;
 
 const SECRET_HEADER = { "x-e2e-test-secret": TEST_SECRET };
 
@@ -49,7 +54,7 @@ export async function resetTestProfile(opts: { onboarded?: boolean } = { onboard
     if (id !== undefined) {
       await ctx.patch(`${API_BASE}/api/profiles/${id}`, {
         data: { onboardedAt: new Date().toISOString() },
-        headers: { "content-type": "application/json", "x-grownup-token": "grownup:e2e-token" },
+        headers: { "content-type": "application/json", "x-grownup-token": E2E_GROWNUP_TOKEN },
       });
     }
   }

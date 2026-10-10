@@ -6,8 +6,7 @@ import {
   resetTestProfile,
   setActiveProfileForPage,
   waitForRoot,
-  E2E_GROWNUPS_PASSCODE,
-} from "./helpers";
+  E2E_GROWNUPS_PASSCODE, E2E_GROWNUP_TOKEN } from "./helpers";
 
 test.describe("British/American English toggle", () => {
   test.beforeEach(async () => {
@@ -35,7 +34,7 @@ test.describe("British/American English toggle", () => {
       headers: {
         "x-profile-id": String(id),
         "content-type": "application/json",
-        "x-grownup-token": "grownup:e2e-token",
+        "x-grownup-token": E2E_GROWNUP_TOKEN,
       },
       data: { languageVariant: "en-US" },
     });
@@ -83,7 +82,7 @@ test.describe("British/American English toggle", () => {
       headers: {
         "x-profile-id": String(id),
         "content-type": "application/json",
-        "x-grownup-token": "grownup:e2e-token",
+        "x-grownup-token": E2E_GROWNUP_TOKEN,
       },
       data: { languageVariant: "en-US" },
     });

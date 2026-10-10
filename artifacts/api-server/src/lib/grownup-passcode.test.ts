@@ -32,6 +32,18 @@ describe("validateGrownupPasscode", () => {
   });
 });
 
+describe("validateGrownupPasscode counts Unicode code points", () => {
+  it("rejects three emoji (6 UTF-16 units, 3 characters) as too short", () => {
+    expect(validateGrownupPasscode("\u{1F600}\u{1F600}\u{1F600}")).toMatch(/at least/);
+  });
+  it("rejects six repeated emoji as a single repeated character", () => {
+    expect(validateGrownupPasscode("\u{1F600}".repeat(6))).toMatch(/repeated/);
+  });
+  it("accepts six distinct emoji", () => {
+    expect(validateGrownupPasscode("\u{1F600}\u{1F680}\u{1F308}\u{1F98A}\u{1F333}\u{1F4DA}")).toBeNull();
+  });
+});
+
 describe("resolveGrownupPasscode", () => {
   it.each(["development", "test", "production"])(
     "throws when GROWNUPS_PASSCODE=1234 in %s (AC1)",
@@ -88,5 +100,18 @@ describe("no hard-coded default passcode in server source (AC2 static guard)", (
       .filter((f) => f.endsWith(".ts") && !f.endsWith(".test.ts"))
       .filter((f) => /GROWNUPS_PASSCODE\s*(\|\||\?\?)\s*["'`]/.test(readFileSync(f, "utf-8")));
     expect(offenders).toEqual([]);
+  });
+});
+
+describe("Playwright config passes the passcode without shell interpolation", () => {
+  it("does not interpolate GROWNUPS_PASSCODE into a webServer command", () => {
+    const config = readFileSync(join(__dirname, "../../../../playwright.config.ts"), "utf-8");
+    const commands = [...config.matchAll(/command:\s*(["'`])([\s\S]*?)\1/g)].map((m) => m[2]);
+    expect(commands.length).toBeGreaterThan(0);
+    for (const cmd of commands) {
+      expect(cmd).not.toMatch(/\$\{/);
+      expect(cmd).not.toMatch(/GROWNUPS_PASSCODE/);
+    }
+    expect(config).toMatch(/env:\s*\{[\s\S]*GROWNUPS_PASSCODE: E2E_GROWNUPS_PASSCODE/);
   });
 });

@@ -11,7 +11,7 @@ import {
 import { and, desc, eq, gte, sql, inArray, countDistinct } from "drizzle-orm";
 import { GrownupsAuthBody } from "@workspace/api-zod";
 import { resolveProfile } from "../lib/profile";
-import { safeCompare } from "../lib/grownup-auth";
+import { GROWNUP_TOKEN, isGrownupAuthorized, safeCompare } from "../lib/grownup-auth";
 import { resolveGrownupPasscode } from "../lib/grownup-passcode";
 import { logger } from "../lib/logger";
 import rateLimit from "express-rate-limit";
@@ -27,24 +27,11 @@ const authLimiter = rateLimit({
 
 const router: IRouter = Router();
 
-import { randomBytes } from "node:crypto";
-
-const IS_PROD = process.env.NODE_ENV === "production";
-if (IS_PROD && !process.env.GROWNUPS_TOKEN_SECRET) {
-  throw new Error("GROWNUPS_TOKEN_SECRET environment variable is required in production.");
-}
 // No default passcode: required (and strength-checked) via env; dev gets a
 // random per-process passcode. See lib/grownup-passcode.ts.
 const { passcode: PASSCODE } = resolveGrownupPasscode(process.env, {
   warn: (message) => logger.warn(message),
 });
-const TOKEN_SECRET = process.env.GROWNUPS_TOKEN_SECRET || randomBytes(32).toString("hex");
-const TOKEN = `grownup:${TOKEN_SECRET}`;
-
-function requireGrownupAuth(req: { headers: Record<string, string | string[] | undefined> }): boolean {
-  const provided = req.headers["x-grownup-token"];
-  return typeof provided === "string" && safeCompare(provided, TOKEN);
-}
 
 router.post("/grownups/auth", authLimiter, (req, res) => {
   const parsed = GrownupsAuthBody.safeParse(req.body);
@@ -56,11 +43,11 @@ router.post("/grownups/auth", authLimiter, (req, res) => {
     res.status(401).json({ error: "Wrong passcode" });
     return;
   }
-  res.json({ token: TOKEN });
+  res.json({ token: GROWNUP_TOKEN });
 });
 
 function gate(req: import("express").Request, res: import("express").Response): boolean {
-  if (!requireGrownupAuth(req)) {
+  if (!isGrownupAuthorized(req)) {
     res.status(401).json({ error: "Unauthorized" });
     return false;
   }
